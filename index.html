@@ -43,7 +43,8 @@ button,input,select,textarea{font-family:inherit;}
 label.fl{font-size:12px;font-weight:600;color:#6a5a48;margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:.05em;}
 input.fi,select.fi,textarea.fi{padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:6px;font-size:14px;color:#2a1a0a;background:#fdfaf5;outline:none;width:100%;}
 input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
-/* Member card */
+input.fi[type="date"]{min-width:0;width:100%;-webkit-appearance:none;appearance:none;}
+  /* Member card */
 .mc{background:#fdfaf5;border:1px solid #d8cfc0;border-radius:12px;margin-bottom:16px;overflow:hidden;}
 .mc-hdr{background:#A08060;padding:14px 16px;display:flex;align-items:center;gap:12px;}
 .mc-av{width:36px;height:36px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;border:2px solid rgba(255,255,255,.3);flex-shrink:0;}
@@ -222,7 +223,7 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
         <div class="sec-title">報告資料</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="ff"><label class="fl">客戶 / 家庭稱號</label><input class="fi" id="f-fname" placeholder="陳氏家庭 / 陳大文"></div>
-          <div class="ff"><label class="fl">報告日期</label><input class="fi" type="date" id="f-rdate"></div>
+          <div class="ff" style="min-width:0;"><label class="fl">報告日期</label><input class="fi" type="date" id="f-rdate"></div>
          </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="ff"><label class="fl">顧問姓名</label><input class="fi" id="f-adv" placeholder="Lily Lau"></div>
