@@ -220,9 +220,11 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
       <!-- Report info -->
       <div class="sec-card">
         <div class="sec-title">報告資料</div>
-        <div class="g3" style="margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="ff"><label class="fl">客戶 / 家庭稱號</label><input class="fi" id="f-fname" placeholder="陳氏家庭 / 陳大文"></div>
           <div class="ff"><label class="fl">報告日期</label><input class="fi" type="date" id="f-rdate"></div>
+         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="ff"><label class="fl">顧問姓名</label><input class="fi" id="f-adv" placeholder="Lily Lau"></div>
         </div>
         <div style="display:flex;align-items:center;gap:16px;">
@@ -382,9 +384,11 @@ function renderMembers(){const wrap=document.getElementById('members-wrap');cons
 </div>
 <div class="mc-body">
   ${isSingle?`
-  <div class="g3" style="margin-bottom:12px;">
+  <div class="g2" style="margin-bottom:12px;">
     <div class="ff"><label class="fl">姓名</label><input class="fi" data-f="name" value="${m.name||''}" oninput="this.closest('.mc').querySelector('.mc-av').textContent=this.value?this.value.charAt(0):'家';this.closest('.mc').querySelectorAll('.mc-hdr div')[1].querySelector('div').childNodes[0].textContent=this.value||'新成員'"></div>
     <div class="ff"><label class="fl">出生日期</label><input class="fi" type="date" data-f="dob" value="${m.dob||''}"></div>
+    </div>
+<div class="g2" style="margin-bottom:12px;">
     <div class="ff"><label class="fl">吸煙</label><select class="fi" data-f="smoke"><option value="NS"${m.smoke!=='S'?' selected':''}>非吸煙</option><option value="S"${m.smoke==='S'?' selected':''}>吸煙</option></select></div>
   </div>
   <div class="g3" style="margin-bottom:14px;">
@@ -392,9 +396,11 @@ function renderMembers(){const wrap=document.getElementById('members-wrap');cons
     <div class="ff"><label class="fl">受保人</label><input class="fi" data-f="insured" value="${m.insured||''}" placeholder="本人"></div>
     <div class="ff"><label class="fl">受益人</label><input class="fi" data-f="beneficiary" value="${m.beneficiary||''}" placeholder="配偶/父母/子女"></div>
   </div>`:`
-  <div class="g3" style="margin-bottom:12px;">
+  <div class="g2" style="margin-bottom:12px;">
     <div class="ff"><label class="fl">姓名</label><input class="fi" data-f="name" value="${m.name||''}" oninput="this.closest('.mc').querySelector('.mc-av').textContent=this.value?this.value.charAt(0):'家'"></div>
     <div class="ff"><label class="fl">出生日期</label><input class="fi" type="date" data-f="dob" value="${m.dob||''}"></div>
+    </div>
+<div class="g2" style="margin-bottom:12px;"
     <div class="ff"><label class="fl">身份</label><select class="fi" data-f="role">${roles.map(r=>`<option${m.role===r?' selected':''}>${r}</option>`).join('')}</select></div>
   </div>
   <div class="g2" style="margin-bottom:14px;">
@@ -512,9 +518,11 @@ function buildPolicyHTML(p,mi,pi){
       <div class="ff"><label class="fl">保額</label><input class="fi" data-f="sumAssured" value="${p.sumAssured||''}" placeholder="1,000,000" style="font-size:13px;" oninput="this.value=ac(this.value)"></div>
     </div>
   </div>
-  <div class="g3" style="margin-bottom:12px;">
+  <div class="g2" style="margin-bottom:12px;">
     <div class="ff"><label class="fl">生效日期</label><input class="fi" type="date" data-f="effectiveDate" value="${p.effectiveDate||''}" style="font-size:13px;"></div>
     <div class="ff"><label class="fl">繳費年期</label><input class="fi" data-f="paymentTerm" value="${p.paymentTerm||''}" placeholder="20年"></div>
+    </div>
+   <div style="margin-bottom:12px;">
     <div class="ff"><label class="fl">下次檢視</label><input class="fi" type="date" data-f="nextReview" value="${p.nextReview||''}" style="font-size:13px;"></div>
   </div>
   ${extraHTML}
