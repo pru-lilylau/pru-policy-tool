@@ -457,7 +457,7 @@ function doPrint(){
   const isSingle=clientType==='single';
   const subtitle=isSingle?`個人保單總覽 — ${fname}`:`家庭保單總覽 — ${fname}`;
   const totLabel=isSingle?'年度總保費':'全家年度總保費';
-  const today=fD(new Date());
+  const today=fD(rdate);
   const{pieData,grandHKD}=buildPieData(members);
   const pieSVG=buildPieSVG(pieData,190);
 
