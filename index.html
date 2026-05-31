@@ -498,7 +498,7 @@ function doPrint(){
   const legend=pieData.map(d=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:#52606d;"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block;flex-shrink:0;"></span>${TYPE_ZH[d.type]||d.type}</span>`).join('');
   const distRows=pieData.map(d=>{const pct=grandHKD>0?Math.round(d.val/grandHKD*100):0;return`<tr><td style="padding:4px 8px 4px 0;"><span style="display:inline-block;background:${d.color};color:#fff;font-size:9px;font-weight:600;padding:2px 7px;border-radius:3px;min-width:48px;text-align:center;">${TYPE_ZH[d.type]||d.type}</span></td><td style="padding:4px 6px;text-align:right;font-size:10.5px;font-weight:600;color:#1a1a2e;">${fmt(d.val)}</td><td style="padding:4px 0;text-align:right;font-size:10px;color:#52606d;">${pct}%</td></tr>`;}).join('');
 
-  let wm='';for(let i=0;i<80;i++)wm+=`<span>${i%2===0?'@pru_lilylau':'保誠保險'}</span>`;
+  let wm='';for(let i=0;i<500;i++)wm+=`<span>${i%2===0?'@pru_lilylau':'保誠保險'}</span>`;
 
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fname||'保單總覽'}</title><style>
