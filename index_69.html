@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>保單管理工具 · Lily Lau</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',Arial,'Noto Sans CJK TC',sans-serif;background:#f5f0e8;color:#2a1a0a;min-height:100vh;}
+button,input,select,textarea{font-family:inherit;}
+/* ── Print: hide app, show print area ── */
+#print-area{display:none;}
+@media print{
+  #topbar,#app,#pin-screen,#setup-modal{display:none !important;}
+  #print-area{display:block !important;}
+  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+  @page{margin:0 !important;size:210mm 297mm !important;}
+  html,body{margin:0 !important;padding:0 !important;background:#fff !important;}
+}
+/* Topbar */
+#topbar{background:#A08060;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(80,55,35,.25);}
+.tbtn{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;gap:4px;}
+.tbtn:hover{background:rgba(255,255,255,.22);}
+.tbtn.primary{background:#fff;color:#003865;}
+.red-stripe{height:3px;background:#E31837;}
+/* Layout */
+#app{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 67px);transition:grid-template-columns .25s ease;}
+#app.sb-closed{grid-template-columns:44px 1fr;}
+/* Sidebar */
+#sidebar{background:#fdfaf5;border-right:1px solid #d8cfc0;overflow-y:auto;position:relative;}
+#sb-toggle{position:absolute;top:12px;right:8px;z-index:10;width:24px;height:24px;border-radius:50%;background:#d8cfc0;border:none;cursor:pointer;font-size:12px;color:#6a5a48;display:flex;align-items:center;justify-content:center;}
+#sb-full{padding:20px 0 0;}
+#sb-collapsed{padding:48px 4px 8px;display:none;flex-direction:column;align-items:center;gap:6px;}
+#app.sb-closed #sb-full{display:none;}
+#app.sb-closed #sb-collapsed{display:flex;}
+.sb-title{font-size:10px;font-weight:700;color:#9a8a78;text-transform:uppercase;letter-spacing:.12em;padding:8px 4px 6px 16px;}
+.sb-search{display:flex;align-items:center;gap:8px;background:#ede6d8;border-radius:8px;padding:7px 10px;margin:0 40px 8px 16px;}
+.sb-search input{border:none;background:transparent;font-size:13px;flex:1;outline:none;color:#2a1a0a;}
+.sb-item{padding:9px 20px;cursor:pointer;display:flex;align-items:center;gap:10px;border-left:3px solid transparent;}
+.sb-item:hover{background:#f0ece4;}
+.sb-item.active{border-left-color:#003865;background:#EAF1F8;}
+.sb-av{width:32px;height:32px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.sb-new{width:calc(100% - 32px);margin:8px 16px;padding:9px;background:none;border:1.5px dashed #E31837;border-radius:8px;color:#E31837;font-size:12px;font-weight:600;cursor:pointer;}
+/* Content */
+#content{padding:28px 32px;overflow-y:auto;}
+.sec-card{background:#fdfaf5;border-radius:12px;border:1px solid #d8cfc0;padding:20px 24px;margin-bottom:16px;}
+.sec-title{font-size:12px;font-weight:700;color:#003865;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;padding-left:10px;border-left:3px solid #E31837;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.ff{display:flex;flex-direction:column;min-width:0;}
+label.fl{font-size:11px;font-weight:600;color:#6a5a48;margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+input.fi,select.fi,textarea.fi{padding:0 12px;border:1.5px solid #d8cfc0;border-radius:6px;font-size:14px;color:#2a1a0a;background:#fdfaf5;outline:none;width:100%;height:42px;line-height:42px;appearance:none;-webkit-appearance:none;}
+input.fi[type="date"]{height:42px;line-height:normal;padding:0 12px;min-width:0;cursor:pointer;}
+textarea.fi{height:auto;line-height:1.5;padding:10px 12px;}
+select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a5a48' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
+/* Member card */
+.mc{background:#fdfaf5;border:1px solid #d8cfc0;border-radius:12px;margin-bottom:16px;overflow:hidden;}
+.mc-hdr{background:#A08060;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.mc-av{width:36px;height:36px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;border:2px solid rgba(255,255,255,.3);flex-shrink:0;}
+.mc-body{padding:16px 24px;}
+/* Policy card */
+.pc{background:#faf7f2;border:1.5px solid #d8cfc0;border-top:3px solid #E31837;border-radius:0 0 12px 12px;padding:16px;margin-bottom:10px;}
+.pc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.type-sel{font-size:12px;padding:4px 10px;border-radius:20px;color:#003865;font-weight:600;border:1.5px solid #d8cfc0;background:#fdfaf5;cursor:pointer;}
+.extra-box{border-radius:8px;padding:12px 14px;margin-top:10px;}
+.extra-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;padding-left:7px;border-left:2px solid;display:block;}
+.sv-cell{border-radius:5px;padding:7px 10px;text-align:center;border:0.5px solid;background:#fff;}
+.sv-cell .sv-l{font-size:10px;margin-bottom:3px;}
+.sv-cell .sv-v{font-size:13px;font-weight:700;border:none;background:transparent;text-align:center;width:100%;padding:0;font-family:monospace;outline:none;}
+.add-policy-btn{width:100%;padding:9px;background:none;border:1.5px dashed #d8cfc0;border-radius:8px;color:#9a8a78;font-size:12px;cursor:pointer;margin-top:4px;}
+.add-mb-btn{width:100%;padding:11px;background:none;border:2px dashed #E31837;border-radius:8px;color:#E31837;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;}
+/* Modals */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;display:flex;align-items:center;justify-content:center;}
+.mbox{background:#fff;border-radius:16px;padding:28px;width:420px;max-width:95vw;}
+.mtab{padding:10px 20px;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;color:#9a8a78;background:transparent;}
+.mtab.active{border-bottom-color:#E31837;color:#E31837;}
+/* PIN */
+#pin-screen{position:fixed;inset:0;background:#C4A882;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;}
+.pin-box{background:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.6);border-radius:20px;padding:32px 28px 24px;width:300px;}
+.pin-dots{display:flex;gap:10px;justify-content:center;margin-bottom:22px;}
+.pin-dot{width:46px;height:50px;background:rgba(255,255,255,.4);border:1.5px solid rgba(255,255,255,.7);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#3D2000;transition:all .15s;}
+.pin-dot.filled{background:rgba(61,32,0,.15);border-color:rgba(61,32,0,.4);}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pin-key{background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.7);border-radius:10px;color:#3D2000;font-size:17px;font-weight:600;height:48px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pin-key:hover{background:rgba(255,255,255,.65);}
+/* Setup */
+#setup-modal{position:fixed;inset:0;background:rgba(0,56,101,.95);display:none;align-items:center;justify-content:center;z-index:9999;}
+#setup-modal.show{display:flex;}
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;background:#2a1a0a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0);}
+#toast.ok{background:#276B0C;}
+#toast.err{background:#E31837;}
+.type-group .pc{margin-bottom:8px;border-radius:7px;}
+.type-group .pc:last-child{margin-bottom:0;}
+/* SVG icons */
+.icon{display:inline-block;vertical-align:middle;flex-shrink:0;}
+
+/* ── Mobile ── */
+@media(max-width:600px){
+  /* Topbar compressed */
+  #topbar{height:52px;padding:0 10px;}
+  .tb-sub{display:none;}
+  /* Buttons: icon-only */
+  .tbtn{padding:6px 9px;font-size:0 !important;gap:0;border-radius:14px;min-width:36px;justify-content:center;}
+  .tbtn svg,.tbtn .icon{width:18px !important;height:18px !important;}
+  .tbtn.primary{background:rgba(255,255,255,.92);}
+  #topbar>div:last-child{gap:4px;}
+
+  /* App: full width block, no grid */
+  #app{display:block !important;}
+
+  /* Sidebar: fully fixed, slides in from left */
+  #sidebar{
+    position:fixed !important;
+    top:55px;left:0;bottom:0;
+    width:82vw;max-width:320px;
+    z-index:500;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:6px 0 24px rgba(0,0,0,.25);
+    overflow-y:auto;
+  }
+  #app.sb-open #sidebar{transform:translateX(0);}
+  #sb-toggle{display:none;}
+
+  /* Hamburger */
+  #mob-menu-btn{display:flex !important;}
+
+  /* Dim overlay */
+  #sb-overlay{
+    display:none;
+    position:fixed;inset:0;
+    z-index:499;
+    background:rgba(0,0,0,.35);
+    top:55px;
+  }
+  #app.sb-open #sb-overlay{display:block;}
+
+  /* Content: full width */
+  #content{
+    width:100% !important;
+    padding:14px 12px;
+    overflow-x:hidden;
+    min-height:calc(100vh - 55px);
+  }
+
+  /* Forms: single column */
+  .g2,.g3{grid-template-columns:1fr !important;}
+
+  /* Cards */
+  .sec-card{padding:14px 13px;}
+  .mc-body{padding:12px 13px;}
+  .pc{padding:12px;}
+
+  /* Content header row */
+  #content > div:first-child{flex-wrap:wrap;gap:10px;}
+  #content > div:first-child button{font-size:12px;padding:8px 12px;}
+
+  /* Modal */
+  .mbox{width:95vw !important;max-width:95vw;padding:18px 14px;}
+}
+@media(min-width:601px){
+  #mob-menu-btn{display:none !important;}
+  #sb-overlay{display:none !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- PIN -->
+<div id="pin-screen">
+  <div style="color:#3D2000;font-size:26px;font-weight:700;margin-bottom:4px;">Lily Lau</div>
+  <div style="color:rgba(61,32,0,.6);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:36px;">保單管理工具 · @pru_lilylau</div>
+  <div class="pin-box">
+    <div style="color:#3D2000;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;text-align:center;">輸入 PIN 碼</div>
+    <div class="pin-dots" id="pdots">
+      <div class="pin-dot" id="pd0">·</div><div class="pin-dot" id="pd1">·</div>
+      <div class="pin-dot" id="pd2">·</div><div class="pin-dot" id="pd3">·</div>
+    </div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button><button class="pin-key" onclick="pinKey('2')">2</button><button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button><button class="pin-key" onclick="pinKey('5')">5</button><button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button><button class="pin-key" onclick="pinKey('8')">8</button><button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" style="background:transparent;border-color:transparent;pointer-events:none;"></button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" style="color:rgba(61,32,0,.5);" onclick="pinDel()"><svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M6.5 1.5L1.5 7l5 5.5H16.5V1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.5 5l4 4M13.5 5l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+    </div>
+    <div id="pin-err" style="color:#C0392B;font-size:12px;text-align:center;margin-top:12px;min-height:18px;"></div>
+    <div style="color:rgba(61,32,0,.5);font-size:11px;text-align:center;margin-top:10px;">首次使用請先設定 PIN 碼</div>
+  </div>
+</div>
+
+<!-- Setup -->
+<div id="setup-modal">
+  <div style="background:#fff;border-radius:16px;padding:32px;width:460px;max-width:95vw;">
+    <div style="font-size:17px;font-weight:600;color:#003865;margin-bottom:6px;">初次設定</div>
+    <div style="font-size:13px;color:#6a5a48;margin-bottom:22px;line-height:1.6;">設定 GitHub Token 及 PIN 碼，只需做一次。</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input id="setup-tok" type="password" placeholder="ghp_xxxxxxxxxxxxxxxx" style="flex:1;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:13px;outline:none;">
+      <button onclick="setupVerify()" style="padding:10px 16px;background:#003865;color:#fff;border:none;border-radius:8px;cursor:pointer;">確認</button>
+    </div>
+    <div id="setup-status" style="font-size:12px;color:#9a8a78;margin-bottom:18px;">貼入 token 後點「確認」</div>
+    <div style="font-size:13px;color:#6a5a48;margin-bottom:10px;">設定 4 位 PIN 碼</div>
+    <input id="setup-pin" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:120px;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:8px;outline:none;margin-bottom:20px;">
+    <button onclick="setupSave()" style="width:100%;padding:12px;background:#E31837;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;">完成設定，進入工具</button>
+  </div>
+</div>
+
+<!-- Transfer Modal -->
+<div id="transfer-modal" class="overlay" style="display:none;" onclick="if(event.target===this)closeTransfer()">
+  <div class="mbox">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;color:#003865;">跨裝置轉移</div>
+      <button onclick="closeTransfer()" style="background:none;border:none;cursor:pointer;color:#9a8a78;display:flex;padding:4px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid #e8e2d8;margin-bottom:20px;">
+      <button class="mtab active" id="tab-ex" onclick="switchTab('ex')">匯出</button>
+      <button class="mtab" id="tab-im" onclick="switchTab('im')">匯入</button>
+    </div>
+    <div id="tr-ex">
+      <p style="font-size:13px;color:#6a5a48;margin-bottom:16px;line-height:1.6;">喺新裝置選「匯入」，掃描 QR code 或貼上轉移碼。<br><span style="font-size:11px;color:#C0392B;">⚠️ 轉移碼包含 Token，請勿分享他人</span></p>
+      <div style="display:flex;justify-content:center;margin-bottom:14px;"><div style="border:1px solid #d8cfc0;border-radius:8px;padding:8px;background:#fdfaf5;"><img id="qr-img" src="" width="200" height="200" style="display:block;"></div></div>
+      <div style="font-size:11px;font-weight:600;color:#9a8a78;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">或複製轉移碼</div>
+      <textarea id="ex-str" readonly style="width:100%;height:72px;padding:10px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:11px;resize:none;background:#fdfaf5;"></textarea>
+      <button onclick="copyExStr()" style="width:100%;margin-top:10px;padding:10px;background:#003865;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">複製轉移碼</button>
+    </div>
+    <div id="tr-im" style="display:none;">
+      <p style="font-size:13px;color:#6a5a48;margin-bottom:14px;">貼上從原裝置匯出的轉移碼：</p>
+      <textarea id="im-str" placeholder="貼上轉移碼..." style="width:100%;height:80px;padding:10px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:12px;resize:none;"></textarea>
+      <div id="im-err" style="color:#E31837;font-size:12px;margin-top:6px;min-height:18px;"></div>
+      <button onclick="doImport()" style="width:100%;margin-top:10px;padding:10px;background:#003865;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">匯入設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client Modal -->
+<div id="client-modal" class="overlay" style="display:none;" onclick="if(event.target===this)closeCM()">
+  <div class="mbox">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:600;color:#003865;">載入客戶</div>
+      <button onclick="closeCM()" style="background:none;border:none;cursor:pointer;color:#9a8a78;display:flex;padding:4px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:#ede6d8;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:#9a8a78;flex-shrink:0;"><circle cx="5.8" cy="5.8" r="3.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="8.8" y1="8.8" x2="12.2" y2="12.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input id="cm-q" oninput="renderCM()" placeholder="搜尋客戶名稱..." style="border:none;background:transparent;font-size:14px;flex:1;outline:none;">
+    </div>
+    <div id="cm-list" style="max-height:300px;overflow-y:auto;margin-bottom:16px;"></div>
+    <div style="display:flex;justify-content:flex-end;"><button onclick="closeCM()" style="padding:10px 18px;background:#fff;color:#6a5a48;border:1px solid #d8cfc0;border-radius:8px;font-size:14px;cursor:pointer;">取消</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Main App -->
+<div id="main-app" style="display:none;">
+  <div id="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <!-- Mobile hamburger -->
+      <button id="mob-menu-btn" onclick="toggleMobSidebar()" style="display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:10px;width:34px;height:34px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="16" height="14" viewBox="0 0 16 14" fill="none"><line x1="0" y1="1" x2="16" y2="1" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><line x1="0" y1="7" x2="16" y2="7" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><line x1="0" y1="13" x2="16" y2="13" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div style="width:1px;height:18px;background:rgba(255,255,255,.2);"></div>
+      <div>
+        <div style="color:#fff;font-size:15px;font-weight:700;line-height:1.1;">Lily Lau <span style="font-size:10px;opacity:.55;font-weight:400;">@pru_lilylau</span></div>
+        <div class="tb-sub" style="color:rgba(255,255,255,.5);font-size:10px;margin-top:1px;">保單管理工具</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="tbtn" onclick="openCM()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="icon"><path d="M1.5 5.5C1.4 5.4 1.3 4.2 1.4 3.8C1.5 3.3 2.1 3.1 2.6 3.1H5.2C5.7 3.1 6.1 3.5 6.4 3.9L6.9 4.6H13.2C13.8 4.6 14.4 5 14.4 5.7L14.3 12.1C14.3 12.8 13.7 13.3 13 13.3H2.9C2.2 13.3 1.6 12.7 1.6 12Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1.6 7.2H14.2" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-dasharray="1.5 1"/></svg>載入</button>
+      <button class="tbtn" onclick="saveGist()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="icon"><rect x="1.8" y="1.8" width="12.4" height="12.4" rx="2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="4.5" y="1.8" width="7" height="4.5" rx="1" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><rect x="4.5" y="8.5" width="7" height="5.7" rx="1" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="6.5" y1="2.2" x2="6.5" y2="5.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>儲存</button>
+      <button class="tbtn primary" onclick="doPrint()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="icon"><rect x="3.5" y="6" width="9" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 6V2.8A.8.8 0 0 1 5.8 2H10.2a.8.8 0 0 1 .8.8V6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><rect x="5.2" y="9.5" width="5.6" height="3.5" rx="0.8" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><circle cx="11.8" cy="8" r="0.8" fill="currentColor"/></svg>列印</button>
+      <button class="tbtn primary" onclick="doSavePNG()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="icon"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M2 10l3-3 2.5 2.5L11 6l3 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5.5" cy="5.5" r="1" fill="currentColor"/></svg>存PNG</button>
+      <button class="tbtn" onclick="openTransfer()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="icon"><rect x="2.5" y="1.5" width="6" height="10" rx="1.2" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="4.5" y1="10.5" x2="6.5" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M10.5 5.5H13.5M12 3.8l1.8 1.7L12 7.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 9.5H10.5M12 7.8 10.2 9.5 12 11.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>轉移</button>
+      <button class="tbtn" onclick="resetApp()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="icon"><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.2 3.2l1 1M11.8 11.8l1 1M12.8 3.2l-1 1M4.2 11.8l-1 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
+  <div class="red-stripe"></div>
+  <div id="sb-overlay" onclick="toggleMobSidebar()"></div>  <div id="app">
+    <div id="sidebar">
+      <button id="sb-toggle" onclick="toggleSb()">‹</button>
+      <div id="sb-full">
+        <div class="sb-title">客戶列表</div>
+        <div class="sb-search"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:#9a8a78;flex-shrink:0;"><circle cx="5.8" cy="5.8" r="3.8" stroke="currentColor" stroke-width="1.3"/><line x1="8.8" y1="8.8" x2="12.2" y2="12.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input id="sb-q" oninput="renderSB()" placeholder="搜尋客戶..."></div>
+        <div id="sb-list"></div>
+        <button class="sb-new" onclick="newClient()">+ 新增客戶</button>
+      </div>
+      <div id="sb-collapsed">
+        <button onclick="newClient()" title="新增客戶" style="width:32px;height:32px;border-radius:50%;background:none;border:1.5px dashed #E31837;color:#E31837;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+        <div id="sb-av-list"></div>
+      </div>
+    </div>
+
+    <div id="content">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div id="ed-title" style="font-size:20px;font-weight:700;color:#003865;">新客戶</div>
+        <button onclick="saveGist()" style="padding:10px 18px;background:#fff;color:#6a5a48;border:1px solid #d8cfc0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.8" y="1.8" width="12.4" height="12.4" rx="2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="4.5" y="1.8" width="7" height="4.5" rx="1" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><rect x="4.5" y="8.5" width="7" height="5.7" rx="1" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="6.5" y1="2.2" x2="6.5" y2="5.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>儲存至 GitHub</button>
+      </div>
+
+      <div class="sec-card">
+        <div class="sec-title">報告資料</div>
+        <div class="g2" style="margin-bottom:12px;">
+          <div class="ff"><label class="fl">客戶 / 家庭稱號</label><input class="fi" id="f-fname" placeholder="陳氏家庭 / 陳大文" oninput="onFnameChange()"></div>
+          <div class="ff"><label class="fl">報告日期</label><input class="fi" type="date" id="f-rdate"></div>
+        </div>
+        <div class="g3" style="margin-bottom:14px;">
+          <div class="ff"><label class="fl">顧問姓名</label><input class="fi" id="f-adv" placeholder="Lily Lau"></div>
+          <div class="ff"><label class="fl">電話號碼</label><input class="fi" id="f-advPhone" placeholder="60133108" inputmode="tel"></div>
+          <div class="ff"><label class="fl">IG Handle</label><input class="fi" id="f-advIG" placeholder="@pru_lilylau"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <span style="font-size:11px;font-weight:600;color:#6a5a48;text-transform:uppercase;letter-spacing:.05em;">客戶類型：</span>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:500;color:#003865;">
+            <input type="radio" name="ct" value="family" id="ct-fam" onchange="onCTChange()">
+            <svg width="18" height="16" viewBox="0 0 18 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:3px;"><circle cx="5" cy="3.5" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M2 14c0-3 1-4.5 3-4.5s3 1.5 3 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="13" cy="3.5" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M10 14c0-3 1-4.5 3-4.5s3 1.5 3 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="9" cy="7" r="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M6.8 14c0-2 .7-3 2.2-3s2.2 1 2.2 3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>家庭客
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:500;color:#003865;">
+            <input type="radio" name="ct" value="single" id="ct-sin" onchange="onCTChange()">
+            <svg width="14" height="16" viewBox="0 0 14 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:3px;"><circle cx="7" cy="4" r="2.8" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 15c0-3.5 2-5.5 5.5-5.5s5.5 2 5.5 5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>個人客
+          </label>
+        </div>
+      </div>
+
+      <div id="members-wrap"></div>
+      <button class="add-mb-btn" id="add-mb-btn" onclick="addMember()">+ 新增家庭成員</button>
+
+      <div class="sec-card">
+        <div class="sec-title">顧問備註</div>
+        <textarea class="fi" id="f-remarks" rows="3" placeholder="例：建議陳先生加強醫療保障..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const RED='#E31837',NAVY='#003865',MILK='#A08060';
+const AVBG=['#003865','#E31837','#276B0C','#7A4500','#3A2F8F','#085041'];
+const FX={HKD:1,USD:7.78,RMB:1.07,CNY:1.07,GBP:9.85,EUR:8.30};
+const FUND_LIST=[{code:'AAIX',name:'AB FCP I - 美元收益基金'},{code:'AHYX',name:'AB FCP I - 環球高收益基金'},{code:'AIGX',name:'安聯環球投資基金 - 安聯收益及增長基金'},{code:'BATX',name:'貝萊德全球基金 - 亞洲老虎債券基金'},{code:'BEEX',name:'貝萊德全球基金 - 歐洲股票入息基金'},{code:'BEMX',name:'貝萊德全球基金 - 新興市場債券基金'},{code:'BSSX',name:'霸菱環球高級抵押債券基金'},{code:'EABX',name:'瀚亞投資 - 亞洲債券基金'},{code:'EAHX',name:'瀚亞投資 - 亞洲高收益債券基金'},{code:'EIBX',name:'瀚亞投資 - 美國優質債券基金'},{code:'FGMX',name:'富達基金 - 環球多元收益基金'},{code:'FHYX',name:'富達基金 - 美元高收益基金'},{code:'IIFX',name:'晉達環球策略基金 - 環球入息導向基金'},{code:'JAPX',name:'摩根基金 - 亞太入息基金'},{code:'SGHX',name:'施羅德環球基金系列 - 環球高收益'},{code:'TFRX',name:'富蘭克林浮動息率基金'}];
+const toHKD=(a,c)=>{const r=FX[c]||0;return r?Math.round(a*r):null;};
+const fmt=n=>Math.round(n).toLocaleString('zh-HK');
+const fmtP=(n,c,nl)=>{if(!n)return'—';const r=parseFloat(String(n).replace(/,/g,''));if(isNaN(r))return String(n);const f=fmt(r);if(c&&c!=='HKD'&&FX[c]){const hkd=`≈ HKD ${fmt(toHKD(r,c))}`;return nl?`${c} ${f}<br><span style="font-size:10px;opacity:.7;">${hkd}</span>`:`${c} ${f} (${hkd})`;}return`${c?c+' ':''}${f}`.trim();};
+const fD=v=>{if(!v)return'—';const d=new Date(v);if(isNaN(d))return v;return`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;};
+const getAge=dob=>{if(!dob)return'';const d=new Date(dob),n=new Date();const a=n.getFullYear()-d.getFullYear()-(n<new Date(n.getFullYear(),d.getMonth(),d.getDate())?1:0);return`${a}歲`;};
+const ac=v=>{const r=String(v).replace(/,/g,'');const n=parseFloat(r);return(!isNaN(n)&&r!=='')?n.toLocaleString('zh-HK'):v;};
+const acDec=v=>{const r=String(v).replace(/,/g,'');if(r===''||r==='-')return v;const hasTrailingDot=r.endsWith('.');const parts=r.split('.');const intPart=parseInt(parts[0],10);if(isNaN(intPart))return v;const formatted=intPart.toLocaleString('zh-HK');if(hasTrailingDot)return formatted+'.';if(parts.length>1)return formatted+'.'+parts[1].slice(0,2);return formatted;};
+const TYPE_ZH={savings:'儲蓄',critical:'危疾',medical:'醫療',life:'人壽',annuity:'年金',fund:'基金',general:'一般保險'};
+const WCOL={critical:'#C0392B',medical:'#2E5E8E',savings:'#4A7C3F',life:'#5B4A8A',annuity:'#1B6B5A',fund:'#B07D2A',general:'#7A7370'};
+const BADGE={critical:{bg:'#FEF0F2',c:'#B5122B',b:'#f5c0c9'},medical:{bg:'#EAF1F8',c:'#003865',b:'#b5d4f4'},savings:{bg:'#EDF5E6',c:'#276B0C',b:'#c0dd97'},life:{bg:'#F0EFF9',c:'#3A2F8F',b:'#afa9ec'},annuity:{bg:'#E1F5EE',c:'#085041',b:'#5DCAA5'},fund:{bg:'#FEF7EC',c:'#7A4500',b:'#fac775'},general:{bg:'#F1EFE8',c:'#5F5E5A',b:'#b4b2a9'}};
+const MDATA={
+  '保誠加護一生住院現金儲蓄保險 (ENCASH, 1-65)':{wards:['不適用（住院現金）'],annualLimits:{'不適用（住院現金）':'按每日住院現金賠付'},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'住院每日現金賠付，非實報實銷醫療計劃'},
+  '保誠自主醫保計劃 (VSP, 1-81)':{wards:['普通病房','半私家病房','私家病房'],annualLimits:{'普通病房':'按項目限額','半私家病房':'按項目限額','私家病房':'按項目限額'},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'VHIS標準計劃，保證續保至100歲'},
+  '保誠自願醫保摯稱心計劃 (VEP, 1-81)':{wards:['普通病房','半私家病房','私家病房'],annualLimits:{'普通病房':'不設上限','半私家病房':'不設上限','私家病房':'不設上限'},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'VHIS彈性計劃'},
+  '保誠靈活自主醫保計劃 (VFP, 1-81)':{wards:['普通病房','半私家病房','私家病房'],annualLimits:{'普通病房':'不設上限','半私家病房':'不設上限','私家病房':'不設上限'},lifetimeLimit:'不設上限',deductibles:['無額外醫療計劃','額外醫療計劃 1','額外醫療計劃 2'],notes:'VHIS彈性計劃'},
+  '保誠自願醫保尚賓計劃 (VIP, 1-81)':{wards:['半私家房（大中華）/ 私家房（亞洲/全球）'],annualLimits:{'半私家房（大中華）/ 私家房（亞洲/全球）':'HKD 12,000,000'},lifetimeLimit:'HKD 56,000,000',deductibles:['HKD 0','HKD 20,000','HKD 50,000','HKD 96,000'],notes:'VHIS旗艦，終身保證續保，不設逐項保障上限'},
+  '高端醫療自由行計劃 (MCVIP, 1-70)':{wards:['私家病房（全球，美國除外）'],annualLimits:{'私家病房（全球，美國除外）':'HKD 14,000,000'},lifetimeLimit:'HKD 60,000,000',deductibles:['HKD 0（100%）','HKD 10,000（100%）','HKD 20,000（100%）','HKD 50,000（100%）'],notes:'全球私家房，可豁免保費'},
+  '終身保醫療計劃 (MLP, 1-75)':{wards:['普通病房','半私家病房','私家病房'],annualLimits:{'普通病房':'不設上限','半私家病房':'不設上限','私家病房':'不設上限'},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:''},
+  '智安心康健計劃 (HTPR, 1-65)':{wards:['普通病房','半私家病房','私家病房'],annualLimits:{},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'舊有住院醫療計劃，請向顧問查詢'},
+  '醫療加倍保 (PMP, 1-70)':{wards:['普通病房','半私家病房','私家病房'],annualLimits:{},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'附加醫療計劃，需連同主計劃投保'},
+  '「摯為您」優悅醫療保險計劃 (PPM, 1-70)':{wards:['私家病房'],annualLimits:{},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'請向顧問查詢詳情'},
+  '住院護惠計劃 (HCP, 1-60)':{wards:['不適用（住院現金）'],annualLimits:{},lifetimeLimit:'不設上限',deductibles:['不設自付額'],notes:'住院現金計劃，非實報實銷醫療'},
+};
+const PRODS={
+  medical:['保誠加護一生住院現金儲蓄保險 (ENCASH, 1-65)','保誠自主醫保計劃 (VSP, 1-81)','保誠自願醫保摯稱心計劃 (VEP, 1-81)','保誠靈活自主醫保計劃 (VFP, 1-81)','保誠自願醫保尚賓計劃 (VIP, 1-81)','高端醫療自由行計劃 (MCVIP, 1-70)','終身保醫療計劃 (MLP, 1-75)','智安心康健計劃 (HTPR, 1-65)','醫療加倍保 (PMP, 1-70)','「摯為您」優悅醫療保險計劃 (PPM, 1-70)','住院護惠計劃 (HCP, 1-60)','其他醫療計劃（自行輸入）'],
+  savings:['駿譽財富保險計劃 (PACE)','保誠信守明天多元貨幣計劃 (TRST)','世譽財富 (PRMESP)','保誠啟耀未來儲蓄保險 (ENLIT)','保誠加護一生住院現金儲蓄保險 (ENCASH)','特級「雋陞」儲蓄保障計劃 II (EGSP2)','「雋陞」儲蓄保障計劃 (EGS)','「童創未來」教育儲蓄保 (PHD)','息享人生 (PLCS)','雋享入息保障計劃 (EGI)','雍譽非凡終身人壽保險計劃 (PVPP)','雍譽終身壽險計劃 (PVP, 19-75)','其他儲蓄計劃（自行輸入）'],
+  critical:['「自主健康」危疾保 (ECI, 1-65)','危疾首護保 II (CIP2, 1-65)','危疾加護保 III (CIE3, 1-65)','「誠保一生」危疾保 (CIM3, 1-65)','「誠保一生」危疾保 - 摯愛寶 (BCIM3, F 19-46)','守護健康危疾定期保 II (CIT2, 1-65)','「自主健康」危疾多重保 (ECM, 1-65)','「自主健康」嚴重癌症保 (ECS, 1-65)','特選危疾治療保 (CPE, 1-65)','癌症保障 360 (C360, 1-65)','癌症全護計劃 (CP, 1-65)','癌症痊癒保 (CRC, 19-65)','其他危疾計劃（自行輸入）'],
+  life:['保誠加護一生住院現金儲蓄保險 (ENCASH, 1-65)','「自主未來」保障計劃 II (LFRE2, 1-75)','美好人生保障計劃 II (PLP2, 1-65)','雍譽終身壽險計劃 (PVP, 19-75)','「守護家人」定期人壽保 (PLT, 1-75)','息享人生 (PLCS)','雋享入息保障計劃 (EGI)','雍譽非凡終身人壽保險計劃 (PVPP)','其他人壽計劃（自行輸入）'],
+  annuity:['延期年金 (PRDA2)','其他年金計劃（自行輸入）'],
+  fund:['雋珀投資計劃 (POPI)','其他基金計劃（自行輸入）'],
+  general:['保誠精選「安健寶」（PRUChoice Personal Accident）','保誠精選「倍安寶」（PRUChoice Personal Accident Plus）','保誠精選「中國安心寶」（PRUChoice China Protection）','保誠精選「家居寶」（PRUChoice Home）','保誠精選「名家寶」（PRUChoice Home Deluxe）','保誠精選「業主寶」（PRUChoice Home Landlord）','保誠精選「僱傭寶」（PRUChoice Maid）','保誠精選「駕駛寶」（PRUChoice Motor）','保誠精選「寵愛寶」（PRUChoice Furkid Care）','保誠精選「失卡寶」（PRUChoice Card Protection Plus）','保誠精選「高球樂」（PRUChoice Golfers）','保誠精選「來港尚學寶」（PRUChoice Hong Kong Study Care）','保誠精選「旅遊樂」（PRUChoice Travel）','保誠精選「海外留學寶」（PRUChoice Travel Overseas Study）','保誠精選「工作假期寶」（PRUChoice Travel Working Holiday）','其他一般保險（自行輸入）'],
+};
+const CURRENCIES=['HKD','USD','RMB','GBP'];
+const MODES=[{v:'annual',l:'年繳'},{v:'monthly',l:'月繳'},{v:'quarterly',l:'季繳'}];
+const ROLES_FAM=['父親/Father','母親/Mother','子女/Child','祖父/Grandfather','祖母/Grandmother','其他/Other'];
+const ROLES_SIN=['本人/Self','其他/Other'];
+const PHONE_SVG=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:4px;flex-shrink:0"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" fill="rgba(255,255,255,.85)"/></svg>`;
+const IG_SVG=`<svg width="15" height="15" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:4px;flex-shrink:0"><rect x="3" y="3" width="26" height="26" rx="7" stroke="rgba(255,255,255,.9)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:0"/><rect x="3" y="3" width="26" height="26" rx="7" stroke="rgba(255,200,100,.55)" stroke-width="1" fill="none" transform="translate(0.4,0.4)"/><circle cx="16" cy="16" r="5.5" stroke="rgba(255,255,255,.9)" stroke-width="2" fill="none"/><circle cx="16" cy="16" r="5.5" stroke="rgba(255,150,80,.4)" stroke-width="1" fill="none" transform="translate(0.3,0.3)"/><circle cx="23.5" cy="8.5" r="1.4" fill="rgba(255,255,255,.9)"/><circle cx="23.5" cy="8.5" r="0.7" fill="rgba(255,200,120,.6)" transform="translate(0.3,0.3)"/></svg>`;
+
+// ─── STATE ─────────────────────────────────────────────────────────────────────
+let S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, Lily',advPhone:'6013 3108',advIG:'@pru_lilylau',remarks:'',clientType:'family',members:[newMember()]};
+let allGists=[],curGist=null,sbOpen=true,toastTimer=null;
+
+function newPolicy(){return{type:'',planName:'',customName:'',policyNo:'',mode:'annual',currency:'HKD',premium:'',sumAssured:'',effectiveDate:'',paymentTerm:'',nextReview:'',ward:'',deductible:'',annualLimit:'',lifetimeLimit:'',accMed:'',accDeath:'',accDisable:'',sv65:'',sv75:'',svcur:'HKD',critDis:'',critExtra:'',critTo:'',crit65:'',crit75:'',critSvc:'HKD',lifeTo:'',life65:'',life75:'',lifeSvc:'HKD',genAccMed:'',genAccDeath:'',genAccWork:'',genHospCash:'',genTravelType:'',genLuggage:'',genTripCancel:'',genTripDelay:'',genCash:'',genMedical:'',genHomePlan:'',genHomeContents:'',genHomeFurniture:'',genHomePersonal:'',genHomeCash:'',genHomeBuilding:'',genMaidPlan:'',genMaidPeriod:'',genMaidAgency:'',genMaidOutpatient:'',genMaidHospital:'',genMaidCI:'',genMaidCICheck:false};}
+function newMember(){return{name:'',dob:'',insuredDob:'',role:'',owner:'',insured:'',beneficiary:'',smoke:'NS',policies:[]};}
+const gT=()=>{try{return localStorage.getItem('pru_gh_token')||'';}catch(e){return'';}};
+const gP=()=>{try{return localStorage.getItem('pru_pin')||'';}catch(e){return'';}};
+
+// ─── TOAST ─────────────────────────────────────────────────────────────────────
+function toast(msg,type=''){clearTimeout(toastTimer);const el=document.getElementById('toast');el.textContent=msg;el.className='show '+(type||'');toastTimer=setTimeout(()=>el.className='',2800);}
+
+// ─── PIN ───────────────────────────────────────────────────────────────────────
+let pinVal='';
+function pinKey(k){if(pinVal.length>=4)return;pinVal+=k;renderDots();if(pinVal.length===4){setTimeout(()=>{const s=gP();if(!s){pinVal='';renderDots();showSetup();return;}if(pinVal===s){enterApp();}else{document.getElementById('pin-err').textContent='PIN 碼錯誤，請重試';pinVal='';renderDots();setTimeout(()=>{document.getElementById('pin-err').textContent='';},2000);}},200);}}
+function pinDel(){pinVal=pinVal.slice(0,-1);renderDots();}
+function renderDots(){for(let i=0;i<4;i++){const d=document.getElementById('pd'+i);d.textContent=i<pinVal.length?'●':'·';d.classList.toggle('filled',i<pinVal.length);}}
+
+// ─── SETUP ─────────────────────────────────────────────────────────────────────
+function showSetup(){document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.add('show');}
+function setupVerify(){const t=document.getElementById('setup-tok').value.trim();if(!t)return;try{localStorage.setItem('pru_gh_token',t);}catch(e){}const s=document.getElementById('setup-status');s.textContent='✓ Token 已儲存';s.style.color='#276B0C';}
+function setupSave(){const t=document.getElementById('setup-tok').value.trim()||gT(),p=document.getElementById('setup-pin').value;if(!t){alert('請輸入 GitHub Token');return;}if(p.length!==4||!/^\d+$/.test(p)){alert('請輸入4位數字PIN碼');return;}try{localStorage.setItem('pru_gh_token',t);localStorage.setItem('pru_pin',p);}catch(e){alert('儲存設定失敗');return;}document.getElementById('setup-modal').classList.remove('show');enterApp();}
+
+// ─── ENTER ─────────────────────────────────────────────────────────────────────
+function enterApp(){document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.remove('show');document.getElementById('main-app').style.display='block';loadGists();loadForm();}
+function resetApp(){if(!confirm('確定要重置所有設定？'))return;try{localStorage.removeItem('pru_pin');localStorage.removeItem('pru_gh_token');}catch(e){}location.reload();}
+
+// ─── TRANSFER ──────────────────────────────────────────────────────────────────
+function openTransfer(){const t=gT(),p=gP(),es=t&&p?btoa(unescape(encodeURIComponent(JSON.stringify({t,p})))):'';document.getElementById('ex-str').value=es;if(es)document.getElementById('qr-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(es)}`;switchTab('ex');document.getElementById('transfer-modal').style.display='flex';}
+function closeTransfer(){document.getElementById('transfer-modal').style.display='none';}
+function switchTab(t){document.getElementById('tr-ex').style.display=t==='ex'?'block':'none';document.getElementById('tr-im').style.display=t==='im'?'block':'none';document.getElementById('tab-ex').classList.toggle('active',t==='ex');document.getElementById('tab-im').classList.toggle('active',t==='im');}
+function copyExStr(){navigator.clipboard?.writeText(document.getElementById('ex-str').value);toast('已複製轉移碼','ok');}
+function doImport(){const s=document.getElementById('im-str').value.trim();document.getElementById('im-err').textContent='';try{const d=JSON.parse(decodeURIComponent(escape(atob(s))));if(!d.t||!d.p)throw 0;localStorage.setItem('pru_gh_token',d.t);localStorage.setItem('pru_pin',d.p);document.getElementById('tr-im').innerHTML='<div style="text-align:center;padding:24px;"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="display:inline-block;margin-bottom:12px;"><circle cx="16" cy="16" r="13" stroke="#276B0C" stroke-width="1.8" stroke-dasharray="3 1.5"/><path d="M9 16.5L13.5 21 23 11" stroke="#276B0C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><div style="font-size:15px;font-weight:600;color:#276B0C;margin-bottom:16px;">設定已成功匯入！</div><button onclick="location.reload()" style="padding:10px 24px;background:#003865;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">立即重新載入</button></div>';}catch(e){document.getElementById('im-err').textContent='無效的轉移碼，請重試';}}
+
+// ─── SIDEBAR ───────────────────────────────────────────────────────────────────
+function toggleSb(){sbOpen=!sbOpen;document.getElementById('app').classList.toggle('sb-closed',!sbOpen);document.getElementById('sb-toggle').textContent=sbOpen?'‹':'›';}
+function renderSB(){const q=(document.getElementById('sb-q').value||'').toLowerCase();const fl=allGists.filter(g=>g.description.toLowerCase().includes(q));const list=document.getElementById('sb-list');const avl=document.getElementById('sb-av-list');if(!fl.length){list.innerHTML='<div style="padding:20px 16px;text-align:center;color:#9a8a78;font-size:12px;line-height:1.7;">尚未有客戶記錄</div>';avl.innerHTML='';return;}list.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:',''),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div class="sb-item${curGist===g.id?' active':''}" id="sbi-${g.id}"><div class="sb-av" style="background:${AVBG[i%6]};" onclick="loadGist('${g.id}')">${nm.charAt(0)}</div><div style="flex:1;min-width:0;" onclick="loadGist('${g.id}')"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nm}</div><div style="font-size:11px;color:#9a8a78;margin-top:1px;">${dt}</div></div><button onclick="delGist('${g.id}','${nm.replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;color:#9a8a78;display:flex;align-items:center;padding:2px 4px;border-radius:4px;"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>`;}).join('');avl.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:','');return`<div title="${nm}" onclick="loadGist('${g.id}');if(!sbOpen)toggleSb();" style="width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;border:${curGist===g.id?'2px solid #003865':'2px solid transparent'};">${nm.charAt(0)}</div>`;}).join('');}
+
+// ─── GITHUB GIST ───────────────────────────────────────────────────────────────
+async function loadGists(){const tok=gT();if(!tok)return;try{const r=await fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'token '+tok}});const d=await r.json();allGists=(Array.isArray(d)?d:[]).filter(g=>g.description?.startsWith('PRU_CLIENT:'));renderSB();}catch(e){}}
+async function loadGist(id){const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{Authorization:'token '+tok}});const g=await r.json();const f=Object.values(g.files)[0];const d=JSON.parse(f.content);curGist=id;S={...d,members:d.members?.length?d.members:[newMember()]};loadForm();renderSB();toast('已載入：'+d.fname,'ok');}catch(e){toast('載入失敗','err');}}
+async function saveGist(){const tok=gT();if(!tok){toast('未設定 Token','err');return;}collectState();const nm=S.fname||'未命名客戶',body=JSON.stringify(S,null,2);try{let method='POST',url='https://api.github.com/gists';if(curGist){method='PATCH';url=`https://api.github.com/gists/${curGist}`;}else{const ex=allGists.find(g=>g.description==='PRU_CLIENT:'+nm);if(ex){curGist=ex.id;method='PATCH';url=`https://api.github.com/gists/${ex.id}`;}}const r=await fetch(url,{method,headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({description:'PRU_CLIENT:'+nm,public:false,files:{'client.json':{content:body}}})});const g=await r.json();curGist=g.id;await loadGists();toast('已儲存：'+nm,'ok');}catch(e){toast('儲存失敗','err');}}
+async function delGist(id,nm){if(!confirm(`確定要刪除「${nm}」的記錄嗎？`))return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{method:'DELETE',headers:{Authorization:'token '+tok}});if(r.status===204){allGists=allGists.filter(g=>g.id!==id);if(curGist===id){curGist=null;newClient();}renderSB();toast('已刪除「'+nm+'」','ok');}else toast('刪除失敗','err');}catch(e){toast('刪除失敗','err');}}
+
+// ─── CLIENT MODAL ──────────────────────────────────────────────────────────────
+function openCM(){document.getElementById('cm-q').value='';renderCM();document.getElementById('client-modal').style.display='flex';}
+function closeCM(){document.getElementById('client-modal').style.display='none';}
+function renderCM(){const q=(document.getElementById('cm-q').value||'').toLowerCase();const fl=allGists.filter(g=>g.description.toLowerCase().includes(q));const list=document.getElementById('cm-list');if(!fl.length){list.innerHTML='<div style="text-align:center;color:#9a8a78;font-size:13px;padding:24px;">未有客戶記錄</div>';return;}list.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:',''),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div style="padding:10px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='#EAF1F8'" onmouseout="this.style.background=''" onclick="loadGist('${g.id}');closeCM()"><div style="width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${nm.charAt(0)}</div><div><div style="font-size:14px;font-weight:500;">${nm}</div><div style="font-size:11px;color:#9a8a78;">上次更新：${dt}</div></div></div>`;}).join('');}
+
+// ─── FORM ──────────────────────────────────────────────────────────────────────
+function newClient(){curGist=null;S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, Lily',advPhone:'6013 3108',advIG:'@pru_lilylau',remarks:'',clientType:'family',members:[newMember()]};loadForm();renderSB();}
+function onFnameChange(){document.getElementById('ed-title').textContent=document.getElementById('f-fname').value||'新客戶';}
+function onCTChange(){S.clientType=document.querySelector('input[name="ct"]:checked')?.value||'family';updateAddBtn();collectState();renderMembers();}
+function updateAddBtn(){document.getElementById('add-mb-btn').textContent=`+ 新增${S.clientType==='single'?'保單持有人':'家庭成員'}`;}
+function loadForm(){document.getElementById('f-fname').value=S.fname||'';document.getElementById('f-rdate').value=S.rdate||new Date().toISOString().split('T')[0];document.getElementById('f-adv').value=S.adv||'Lau Lai Lai, Lily';document.getElementById('f-advPhone').value=S.advPhone||'6013 3108';document.getElementById('f-advIG').value=S.advIG||'@pru_lilylau';document.getElementById('f-remarks').value=S.remarks||'';document.getElementById('ct-fam').checked=S.clientType!=='single';document.getElementById('ct-sin').checked=S.clientType==='single';document.getElementById('ed-title').textContent=S.fname||'新客戶';updateAddBtn();renderMembers();}
+function collectState(){S.fname=document.getElementById('f-fname').value;S.rdate=document.getElementById('f-rdate').value;S.adv=document.getElementById('f-adv').value;S.advPhone=document.getElementById('f-advPhone').value;S.advIG=document.getElementById('f-advIG').value;S.remarks=document.getElementById('f-remarks').value;S.clientType=document.querySelector('input[name="ct"]:checked')?.value||'family';S.members=collectMembers();}
+function collectMembers(){return Array.from(document.querySelectorAll('.mc')).map(mel=>{const g=f=>mel.querySelector(`[data-f="${f}"]`)?.value||'';return{name:g('name'),dob:g('dob'),insuredDob:g('insuredDob'),role:g('role'),owner:g('owner'),insured:g('insured'),beneficiary:g('beneficiary'),smoke:g('smoke'),policies:collectPolicies(mel)};});}
+function collectPolicies(mel){return Array.from(mel.querySelectorAll('.pc')).map(pel=>{const g=f=>pel.querySelector(`[data-f="${f}"]`)?.value||'';
+  // collect fund holdings
+  const fundHoldings=[];pel.querySelectorAll('.fund-row').forEach(row=>{const fn=row.querySelector('[data-f="fundName"]')?.value||'';const fp=row.querySelector('[data-f="fundPct"]')?.value||'';if(fn)fundHoldings.push({name:fn,pct:fp});});
+  return{type:g('type'),planName:g('planName'),customName:g('customName'),policyNo:g('policyNo'),mode:g('mode'),currency:g('currency'),premium:g('premium'),sumAssured:g('sumAssured'),effectiveDate:g('effectiveDate'),paymentTerm:g('paymentTerm'),nextReview:g('nextReview'),ward:g('ward'),wardCustom:g('wardCustom'),deductible:g('deductible'),deductibleCustom:g('deductibleCustom'),annualLimit:g('annualLimit'),lifetimeLimit:g('lifetimeLimit'),accMed:g('accMed'),accDeath:g('accDeath'),accDisable:g('accDisable'),sv65:g('sv65'),sv75:g('sv75'),svcur:g('svcur')||'HKD',critDis:g('critDis'),critExtra:g('critExtra'),critTo:g('critTo'),crit65:g('crit65'),crit75:g('crit75'),critSvc:g('critSvc')||'HKD',lifeTo:g('lifeTo'),life65:g('life65'),life75:g('life75'),lifeSvc:g('lifeSvc')||'HKD',genAccMed:g('genAccMed'),genAccDeath:g('genAccDeath'),genAccWork:g('genAccWork'),genHospCash:g('genHospCash'),genTravelType:g('genTravelType'),genLuggage:g('genLuggage'),genTripCancel:g('genTripCancel'),genTripDelay:g('genTripDelay'),genCash:g('genCash'),genMedical:g('genMedical'),genHomePlan:g('genHomePlan'),genHomeContents:g('genHomeContents'),genHomeFurniture:g('genHomeFurniture'),genHomePersonal:g('genHomePersonal'),genHomeCash:g('genHomeCash'),genHomeBuilding:g('genHomeBuilding'),genMaidPlan:g('genMaidPlan'),genMaidPeriod:g('genMaidPeriod'),genMaidAgency:g('genMaidAgency'),genMaidOutpatient:g('genMaidOutpatient'),genMaidHospital:g('genMaidHospital'),genMaidCI:g('genMaidCI'),genMaidCICheck:pel.querySelector('[data-f="genMaidCICheck"]')?.checked||false,fundHoldings};})}
+// ─── RENDER MEMBERS ────────────────────────────────────────────────────────────
+function checkInsuredDob(inp){const mc=inp.closest('.mc');if(!mc)return;const owner=mc.querySelector('[data-f="owner"]')?.value||'';const insured=mc.querySelector('[data-f="insured"]')?.value||'';const miMatch=mc.id?.match(/\d+/);const rows=mc.querySelectorAll('[id^="insuredDobRow_"]');rows.forEach(row=>{row.style.display=(insured&&owner&&insured!==owner)?'':'none';});}
+function addMember(){collectState();S.members.push(newMember());renderMembers();}
+function removeMember(i){collectState();S.members.splice(i,1);if(!S.members.length)S.members=[newMember()];renderMembers();}
+function addPolicy(mi){collectState();S.members[mi].policies.push(newPolicy());renderMembers();}
+function removePolicy(mi,pi){collectState();S.members[mi].policies.splice(pi,1);renderMembers();}
+function onTypeChange(sel,mi,pi){collectState();S.members[mi].policies[pi].type=sel.value;S.members[mi].policies[pi].planName=PRODS[sel.value]?.[0]||'';if(sel.value==='critical'){const pn=S.members[mi].policies[pi].planName;const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=d.dis;S.members[mi].policies[pi].critExtra=d.extra;}}renderMembers();}
+// ─── CRITICAL ILLNESS PLAN DEFAULTS ──────────────────────────────────────────
+const CRIT_DEFAULTS={'「誠保一生」危疾保 (CIM3, 1-65)':{dis:'127種',extra:'50'},'「誠保一生」危疾保 - 摯愛寶 (BCIM3, F 19-46)':{dis:'127種',extra:'50'},'危疾加護保 III (CIE3, 1-65)':{dis:'117種',extra:'50'},'危疾首護保 II (CIP2, 1-65)':{dis:'74種',extra:'50'}};
+function onCritPlanChange(sel,mi,pi){collectState();const pn=sel.value;S.members[mi].policies[pi].planName=pn;if(pn.includes('自行輸入')){S.members[mi].policies[pi].critDis='';S.members[mi].policies[pi].critExtra='';}else{const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=S.members[mi].policies[pi].critDis||d.dis;S.members[mi].policies[pi].critExtra=S.members[mi].policies[pi].critExtra||d.extra;}}renderMembers();}
+function onPlanChange(sel){const isC=sel.value.includes('自行輸入');const pc=sel.closest('.pc');const ex=pc.querySelector('[data-f="customName"]');if(isC&&!ex){const inp=document.createElement('input');inp.className='fi';inp.dataset.f='customName';inp.placeholder='自行輸入計劃名稱';inp.style.marginTop='6px';sel.parentNode.appendChild(inp);}else if(!isC&&ex)ex.remove();}
+function addFundRow(btn){const wrap=btn.closest('.extra-box').querySelector('.fund-rows-wrap');const fundOpts=FUND_LIST.map(f=>`<option value="${f.code} ${f.name}">${f.code} ${f.name}</option>`).join('');const row=document.createElement('div');row.className='fund-row';row.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:6px;align-items:center;margin-bottom:6px;';row.innerHTML=`<select class="fi" data-f="fundName" style="font-size:12px;"><option value="">選擇基金</option>${fundOpts}</select><div style="position:relative;"><input class="fi" data-f="fundPct" value="" placeholder="%" style="font-size:13px;padding-right:22px;" oninput="updateFundTotal(this)"><span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#9a8a78;pointer-events:none;">%</span></div><button type="button" onclick="removeFundRow(this)" style="width:26px;height:26px;border-radius:50%;background:#fee;border:1px solid #f5c0c9;color:#C0392B;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0;">×</button>`;wrap.appendChild(row);}
+function removeFundRow(btn){const row=btn.closest('.fund-row');const wrap=row.parentNode;if(wrap.querySelectorAll('.fund-row').length<=1)return;row.remove();updateFundTotal(wrap.querySelector('[data-f="fundPct"]'));}
+function updateFundTotal(inp){const eb=inp.closest('.extra-box');if(!eb)return;let tot=0;eb.querySelectorAll('[data-f="fundPct"]').forEach(i=>{const v=parseFloat(i.value);if(!isNaN(v))tot+=v;});const tv=eb.querySelector('.fund-total-val');if(tv)tv.textContent=tot;const tl=eb.querySelector('.fund-total');if(tl)tl.style.color=tot>100?'#E31837':tot===100?'#276B0C':'#7A4500';}
+function fmtHKD(inp){const v=inp.value;if(v==='N/A'||v==='')return;const pfxM=v.match(/^([A-Z]+)\s*/);const pfx=pfxM?pfxM[1]:'';const raw=v.replace(/^[A-Z]+\s*/,'').replace(/,/g,'').replace(/\/年$/,'');const hasSuffix=v.endsWith('/年');const n=parseFloat(raw);if(!isNaN(n)&&raw!==''){inp.value=(pfx?pfx:'')+(pfx?' ':'')+n.toLocaleString('zh-HK')+(hasSuffix?'/年':'');}}
+function toggleCustomInput(sel,fieldName){const pc=sel.closest('.pc');const inp=pc.querySelector(`[data-f="${fieldName}"]`);if(!inp)return;inp.style.display=sel.value==='自行輸入'?'block':'none';if(sel.value!=='自行輸入')inp.value='';}
+const HOME_DEFAULTS={'小康之家':{contents:'HKD750,000/年',furniture:'HKD75,000/年',personal:'HKD20,000/年',cash:'HKD64,000/年',building:'N/A'},'卓越之家':{contents:'HKD1,500,000/年',furniture:'HKD150,000/年',personal:'HKD40,000/年',cash:'HKD124,000/年',building:'N/A'}};
+function onGeneralPlanChange(sel,mi,pi){collectState();const pn=sel.value;S.members[mi].policies[pi].planName=pn;
+if(pn.includes('自行輸入')){const p2=S.members[mi].policies[pi];p2.genAccMed='';p2.genAccDeath='';p2.genAccWork='';p2.genHospCash='';p2.genTravelType='';p2.genLuggage='';p2.genTripCancel='';p2.genTripDelay='';p2.genCash='';p2.genMedical='';p2.genHomePlan='';p2.genHomeContents='';p2.genHomeFurniture='';p2.genHomePersonal='';p2.genHomeCash='';p2.genHomeBuilding='';p2.genMaidPlan='';p2.genMaidPeriod='';p2.genMaidAgency='';p2.genMaidOutpatient='';p2.genMaidHospital='';p2.genMaidCI='';p2.genMaidCICheck=false;}
+else if(pn.includes('倍安寶')||pn.includes('安健寶')){S.members[mi].policies[pi].genAccMed=S.members[mi].policies[pi].genAccMed||'HKD25,000';S.members[mi].policies[pi].genAccDeath=S.members[mi].policies[pi].genAccDeath||'HKD780,000';S.members[mi].policies[pi].genAccWork=S.members[mi].policies[pi].genAccWork||'N/A';S.members[mi].policies[pi].genHospCash=S.members[mi].policies[pi].genHospCash||'N/A';}
+else if(pn.includes('旅遊樂')){S.members[mi].policies[pi].genTravelType=S.members[mi].policies[pi].genTravelType||'全年';S.members[mi].policies[pi].genLuggage=S.members[mi].policies[pi].genLuggage||'HKD20,000';S.members[mi].policies[pi].genTripCancel=S.members[mi].policies[pi].genTripCancel||'HKD30,000';S.members[mi].policies[pi].genTripDelay=S.members[mi].policies[pi].genTripDelay||'HKD3,000';S.members[mi].policies[pi].genCash=S.members[mi].policies[pi].genCash||'HKD26,000';S.members[mi].policies[pi].genMedical=S.members[mi].policies[pi].genMedical||'HKD1,200,000';}
+else if(pn.includes('家居寶')){const p2=S.members[mi].policies[pi];const hd=HOME_DEFAULTS[p2.genHomePlan||'小康之家'];p2.genHomePlan=p2.genHomePlan||'小康之家';p2.genHomeContents=p2.genHomeContents||hd.contents;p2.genHomeFurniture=p2.genHomeFurniture||hd.furniture;p2.genHomePersonal=p2.genHomePersonal||hd.personal;p2.genHomeCash=p2.genHomeCash||hd.cash;p2.genHomeBuilding=p2.genHomeBuilding||hd.building;}
+else if(pn.includes('僱傭寶')){const p2=S.members[mi].policies[pi];p2.genMaidPlan=p2.genMaidPlan||'基本計劃';p2.genMaidPeriod=p2.genMaidPeriod||'一年';p2.genMaidAgency=p2.genMaidAgency||'HKD15,000/年';p2.genMaidOutpatient=p2.genMaidOutpatient||'HKD4,000/年';p2.genMaidHospital=p2.genMaidHospital||'HKD30,000/年';}
+renderMembers();}
+function onMaidPlanChange(sel){const pc=sel.closest('.pc');const isComp=sel.value==='綜合計劃';const ciRow=pc.querySelector('.maid-ci-row');if(ciRow)ciRow.style.display=isComp?'':'none';if(!isComp){const cb=pc.querySelector('[data-f="genMaidCICheck"]');const ciField=pc.querySelector('.maid-ci-field');if(cb)cb.checked=false;if(ciField)ciField.style.display='none';}}
+function onMaidCICheck(cb){const pc=cb.closest('.pc');const ciField=pc.querySelector('.maid-ci-field');if(ciField)ciField.style.display=cb.checked?'':'none';}
+function onHomeTypeChange(sel){const pc=sel.closest('.pc');const plan=sel.value;const d=HOME_DEFAULTS[plan];if(!d)return;const set=(f,v)=>{const el=pc.querySelector(`[data-f="${f}"]`);if(el)el.value=v;};set('genHomeContents',d.contents);set('genHomeFurniture',d.furniture);set('genHomePersonal',d.personal);set('genHomeCash',d.cash);set('genHomeBuilding',d.building);}
+function onWardChange(sel){const pc=sel.closest('.pc');const pn=pc.querySelector('[data-f="planName"]')?.value;const md=MDATA[pn];if(!md)return;const al=pc.querySelector('[data-f="annualLimit"]');const ll=pc.querySelector('[data-f="lifetimeLimit"]');if(al&&md.annualLimits?.[sel.value])al.value=md.annualLimits[sel.value];if(ll&&md.lifetimeLimit)ll.value=md.lifetimeLimit;}
+function onMedPlanChange(sel){const pc=sel.closest('.pc');const md=MDATA[sel.value];if(!md)return;const ward=pc.querySelector('[data-f="ward"]');const ded=pc.querySelector('[data-f="deductible"]');const ll=pc.querySelector('[data-f="lifetimeLimit"]');const notes=pc.querySelector('.med-notes');if(ward){ward.innerHTML='<option value="">選擇病房</option>'+(md.wards||[]).map(w=>`<option>${w}</option>`).join('')+'<option value="自行輸入">自行輸入</option>';}if(ded){ded.innerHTML='<option value="">選擇自付額</option>'+(md.deductibles||[]).map(d=>`<option>${d}</option>`).join('')+'<option value="自行輸入">自行輸入</option>';}if(ll&&md.lifetimeLimit)ll.value=md.lifetimeLimit;if(notes)notes.textContent=md.notes?('💡 '+md.notes):'';}
+
+function renderMembers(){const wrap=document.getElementById('members-wrap');const isSingle=S.clientType==='single';wrap.innerHTML='';S.members.forEach((m,mi)=>{const col=AVBG[mi%6];const roles=isSingle?ROLES_SIN:ROLES_FAM;const div=document.createElement('div');div.className='mc';div.innerHTML=`
+<div class="mc-hdr">
+  <div class="mc-av" style="background:${col};">${isSingle?`<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="6.5" r="3.5" fill="rgba(255,255,255,.9)"/><path d="M2 18c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round"/></svg>`:(m.name?m.name.charAt(0):'家')}</div>
+  <div style="flex:1;"><div style="color:#fff;font-size:15px;font-weight:600;">${isSingle?'個人客':(m.name||'新成員')}${!isSingle&&m.role?` <span style="font-size:11px;opacity:.65;font-weight:400;">${m.role.split('/')[0]}</span>`:''}</div></div>
+  <button onclick="removeMember(${mi})" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.5);display:flex;align-items:center;padding:2px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+</div>
+<div class="mc-body">
+  ${isSingle?`
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="ff"><label class="fl">投保人</label><input class="fi" data-f="owner" value="${m.owner||''}" placeholder="本人" oninput="checkInsuredDob(this)"></div>
+    <div class="ff"><label class="fl">出生日期</label><input class="fi" type="date" data-f="dob" value="${m.dob||''}"></div>
+  </div>
+  <div class="g3" style="margin-bottom:12px;">
+    <div class="ff"><label class="fl">受保人</label><input class="fi" data-f="insured" value="${m.insured||''}" placeholder="本人" oninput="checkInsuredDob(this)"></div>
+    <div class="ff"><label class="fl">受益人</label><input class="fi" data-f="beneficiary" value="${m.beneficiary||''}" placeholder="配偶/父母/子女"></div>
+    <div class="ff"><label class="fl">吸煙</label><select class="fi" data-f="smoke"><option value="NS"${m.smoke!=='S'?' selected':''}>非吸煙</option><option value="S"${m.smoke==='S'?' selected':''}>吸煙</option></select></div>
+  </div>
+  <div class="g2" id="insuredDobRow_${mi}" style="margin-bottom:12px;${(m.insured&&m.owner&&m.insured!==m.owner)?'':'display:none;'}">
+    <div class="ff"><label class="fl">受保人出生日期</label><input class="fi" type="date" data-f="insuredDob" value="${m.insuredDob||''}"></div>
+    <div></div>
+  </div>`:`
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="ff"><label class="fl">投保人</label><input class="fi" data-f="owner" value="${m.owner||''}" placeholder="本人" oninput="checkInsuredDob(this)"></div>
+    <div class="ff"><label class="fl">出生日期</label><input class="fi" type="date" data-f="dob" value="${m.dob||''}"></div>
+  </div>
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="ff"><label class="fl">身份</label><select class="fi" data-f="role">${roles.map(r=>`<option${m.role===r?' selected':''}>${r}</option>`).join('')}</select></div>
+    <div></div>
+  </div>
+  <div class="g3" style="margin-bottom:${(m.insured&&m.owner&&m.insured!==m.owner)?'12':'14'}px;">
+    <div class="ff"><label class="fl">受保人</label><input class="fi" data-f="insured" value="${m.insured||''}" placeholder="本人" oninput="checkInsuredDob(this)"></div>
+    <div class="ff"><label class="fl">受益人</label><input class="fi" data-f="beneficiary" value="${m.beneficiary||''}" placeholder="配偶/子女"></div>
+    <div class="ff"><label class="fl">吸煙</label><select class="fi" data-f="smoke"><option value="NS"${m.smoke!=='S'?' selected':''}>非吸煙</option><option value="S"${m.smoke==='S'?' selected':''}>吸煙</option></select></div>
+  </div>
+  <div class="g2" id="insuredDobRow_${mi}" style="margin-bottom:14px;${(m.insured&&m.owner&&m.insured!==m.owner)?'':'display:none;'}">
+    <div class="ff"><label class="fl">受保人出生日期</label><input class="fi" type="date" data-f="insuredDob" value="${m.insuredDob||''}"></div>
+    <div></div>
+  </div>`}
+  <div style="font-size:10px;font-weight:700;color:#003865;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-left:8px;border-left:2px solid #E31837;">保單</div>
+  <div class="pc-wrap" id="pc-wrap-${mi}">${m.policies.length?buildGroupedPolicies(m.policies,mi):'<div style="text-align:center;padding:18px 0 10px;color:#C8B890;font-size:12px;">尚未加入保單，按下方按鈕新增</div>'}</div>
+  <button class="add-policy-btn" onclick="addPolicy(${mi})">+ 新增保單類別</button>
+</div>`;
+  wrap.appendChild(div);});}
+
+function buildGroupedPolicies(policies,mi){
+  if(!policies||!policies.length)return'';
+  const order=[];const groups={};
+  policies.forEach((p,pi)=>{
+    const t=p.type||'';
+    if(!groups[t]){groups[t]=[];order.push(t);}
+    groups[t].push({p,pi});
+  });
+  // Sort: empty type always last
+  order.sort((a,b)=>{if(a===''&&b!=='')return 1;if(a!==''&&b==='')return -1;return 0;});
+  const TYPE_COLORS={medical:'#2E5E8E',critical:'#C0392B',savings:'#4A7C3F',annuity:'#1B6B5A',life:'#5B4A8A',fund:'#B07D2A',general:'#7A7370','':'#9a8a78'};
+  const TYPE_BG={medical:'rgba(46,94,142,0.07)',critical:'rgba(192,57,43,0.07)',savings:'rgba(74,124,63,0.07)',annuity:'rgba(27,107,90,0.07)',life:'rgba(91,74,138,0.07)',fund:'rgba(176,125,42,0.07)',general:'rgba(122,115,112,0.07)','':'rgba(154,138,120,0.07)'};
+  return order.map(t=>{
+    const col=TYPE_COLORS[t]||'#666';
+    const bg=TYPE_BG[t]||'rgba(0,0,0,0.04)';
+    const label=t?TYPE_ZH[t]||t:'請選擇保單類型';
+    const cards=groups[t].map(({p,pi})=>buildPolicyHTML(p,mi,pi)).join('');
+    const addBtn=t?`<button onclick="addSameTypePolicy(${mi},'${t}')" style="display:flex;align-items:center;gap:4px;font-size:11px;color:${col};background:rgba(255,255,255,.7);border:1px solid ${col}55;border-radius:8px;padding:3px 9px;cursor:pointer;font-weight:600;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>新增${label}</button>`:'';
+    return`<div class="type-group" data-type="${t}" style="margin-bottom:14px;border:1px solid ${col}26;border-radius:10px;overflow:hidden;">
+  <div class="type-group-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:${bg};border-bottom:1px solid ${col}20;">
+    <span style="font-size:11px;font-weight:700;color:${col};letter-spacing:.04em;">${label}</span>
+    ${addBtn}
+  </div>
+  <div class="type-group-body" style="padding:10px 10px 2px;">${cards}</div>
+</div>`;
+  }).join('');
+}
+
+function addSameTypePolicy(mi,type){
+  collectState();
+  const np=newPolicy();
+  np.type=type;
+  np.planName=PRODS[type]?.[0]||'';
+  if(type==='critical'){const d=CRIT_DEFAULTS[np.planName];if(d){np.critDis=d.dis;np.critExtra=d.extra;}}
+  // Find last index of same type and insert after it
+  const ps=S.members[mi].policies;
+  let lastIdx=-1;
+  ps.forEach((p,i)=>{if((p.type||'')===type)lastIdx=i;});
+  if(lastIdx>=0){ps.splice(lastIdx+1,0,np);}
+  else{ps.push(np);}
+  renderMembers();
+}
+
+function buildPolicyHTML(p,mi,pi){
+  const t=p.type||'';const prods=t?PRODS[t]||[]:[];
+  const isC=(p.planName||'').includes('自行輸入');
+  const displayName=isC?(p.customName||''):(p.planName||prods[0]||'');
+  const md=MDATA[p.planName]||null;
+  const sc={savings:'#276B0C',annuity:'#085041',critical:'#C0392B',life:'#5B4A8A'}[t]||'#276B0C';
+  const sb={savings:'#c0dd97',annuity:'#5DCAA5',critical:'#f5c0c9',life:'#b4a8d8'}[t]||'#c0dd97';
+  const exBg={medical:'background:#EAF1F8;border:1px solid #b5d4f4',savings:'background:#EDF5E6;border:1px solid #c0dd97',annuity:'background:#E1F5EE;border:1px solid #5DCAA5',critical:'background:#fdf0ef;border:0.5px solid #e8b4b0',life:'background:#f0eef8;border:0.5px solid #b4a8d8',general:'background:#F1EFE8;border:1px solid #b4b2a9'};
+  const etC={medical:'color:#003865;border-color:#003865',savings:'color:#276B0C;border-color:#276B0C',annuity:'color:#085041;border-color:#085041',critical:'color:#C0392B;border-color:#C0392B',life:'color:#5B4A8A;border-color:#5B4A8A'};
+  let extra='';
+if(t==='medical'){const wards=md?.wards||['私家病房','半私家病房','普通病房'],deds=md?.deductibles||['不設自付額'];const defAnnual=md?.annualLimits?.[p.ward]||'不設上限';extra=`<div class="extra-box" style="${exBg.medical||''}"><span class="extra-title" style="${etC.medical||''}">醫療保障詳情</span>${md?.notes?`<div class="med-notes" style="font-size:11px;color:#003865;background:rgba(255,255,255,.6);border-radius:5px;padding:5px 8px;margin-bottom:10px;line-height:1.5;">💡 ${md.notes}</div>`:'<div class="med-notes"></div>'}<div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">病房級別</label><select class="fi" data-f="ward" onchange="onWardChange(this);toggleCustomInput(this,'wardCustom')" style="font-size:13px;"><option value="">選擇病房</option>${wards.map(w=>`<option${p.ward===w?' selected':''}>${w}</option>`).join('')}<option value="自行輸入"${p.ward==='自行輸入'?' selected':''}>自行輸入</option></select>${p.ward==='自行輸入'?`<input class="fi" data-f="wardCustom" value="${p.wardCustom||''}" placeholder="輸入病房級別" style="margin-top:6px;">`:`<input class="fi" data-f="wardCustom" value="${p.wardCustom||''}" placeholder="輸入病房級別" style="margin-top:6px;display:none;">`}</div><div class="ff"><label class="fl">自付額</label><select class="fi" data-f="deductible" onchange="toggleCustomInput(this,'deductibleCustom')" style="font-size:13px;"><option value="">選擇自付額</option>${deds.map(d=>`<option${p.deductible===d?' selected':''}>${d}</option>`).join('')}<option value="自行輸入"${p.deductible==='自行輸入'?' selected':''}>自行輸入</option></select>${p.deductible==='自行輸入'?`<input class="fi" data-f="deductibleCustom" value="${p.deductibleCustom||''}" placeholder="HKD 0" style="margin-top:6px;" oninput="this.value=fmtDed(this.value)">`:`<input class="fi" data-f="deductibleCustom" value="${p.deductibleCustom||''}" placeholder="HKD 0" style="margin-top:6px;display:none;" oninput="this.value=fmtDed(this.value)">`}</div></div><div class="g2"><div class="ff"><label class="fl">每年保額</label><input class="fi" data-f="annualLimit" value="${p.annualLimit||''}" placeholder="${defAnnual}"></div><div class="ff"><label class="fl">終生保額</label><input class="fi" data-f="lifetimeLimit" value="${p.lifetimeLimit||''}" placeholder="${md?.lifetimeLimit||'不設上限'}"></div></div></div>`;}
+  else if(t==='accident'){extra=`<div class="extra-box" style="background:#FEF7EC;border:1px solid #fac775"><span class="extra-title" style="color:#7A4500;border-color:#EF9F27">意外保障詳情</span><div class="g3"><div class="ff"><label class="fl">意外醫療保額</label><input class="fi" data-f="accMed" value="${p.accMed||''}" placeholder="100,000"></div><div class="ff"><label class="fl">意外身故保額</label><input class="fi" data-f="accDeath" value="${p.accDeath||''}" placeholder="500,000"></div><div class="ff"><label class="fl">永久傷殘保額</label><input class="fi" data-f="accDisable" value="${p.accDisable||''}" placeholder="500,000"></div></div></div>`;}
+  else if(t==='savings'||t==='annuity'){extra=`<div class="extra-box" style="${exBg[t]||exBg.savings}"><span class="extra-title" style="${etC[t]||etC.savings}">退保價值</span><div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:end;"><div class="ff"><label class="fl">貨幣</label><select class="fi" data-f="svcur" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.svcur||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">65歲退保價值</div><input data-f="sv65" value="${p.sv65||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">75歲退保價值</div><input data-f="sv75" value="${p.sv75||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div></div></div>`;}
+  else if(t==='fund'){
+    const fundOpts=FUND_LIST.map(f=>`<option value="${f.code}">${f.code} ${f.name}</option>`).join('');
+    const holdings=p.fundHoldings&&p.fundHoldings.length?p.fundHoldings:[{name:'',pct:''}];
+    const fundRows=holdings.map((h,hi)=>`<div class="fund-row" style="display:grid;grid-template-columns:1fr 90px 28px;gap:6px;align-items:center;margin-bottom:6px;"><select class="fi" data-f="fundName" style="font-size:12px;"><option value="">選擇基金</option>${FUND_LIST.map(f=>`<option value="${f.code} ${f.name}"${h.name===f.code+' '+f.name?' selected':''}>${f.code} ${f.name}</option>`).join('')}</select><div style="position:relative;"><input class="fi" data-f="fundPct" value="${h.pct||''}" placeholder="%" style="font-size:13px;padding-right:22px;" oninput="updateFundTotal(this)"><span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#9a8a78;pointer-events:none;">%</span></div><button type="button" onclick="removeFundRow(this)" style="width:26px;height:26px;border-radius:50%;background:#fee;border:1px solid #f5c0c9;color:#C0392B;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0;">×</button></div>`).join('');
+    extra=`<div class="extra-box" style="background:#FEF7EC;border:1px solid #fac775"><span class="extra-title" style="color:#7A4500;border-color:#B07D2A;">基金配置</span><div class="fund-rows-wrap">${fundRows}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><button type="button" onclick="addFundRow(this)" style="font-size:12px;color:#7A4500;background:none;border:1px dashed #fac775;border-radius:6px;padding:4px 10px;cursor:pointer;">+ 新增基金</button><span class="fund-total" style="font-size:11px;color:#7A4500;font-weight:600;">合計: <span class="fund-total-val">0</span>%</span></div></div>`;
+  }
+  else if(t==='critical'){const _critIsCustom=(p.planName||'').includes('自行輸入');const _critDis=_critIsCustom?'':p.critDis||'';const _critExtra=_critIsCustom?'':p.critExtra||'';extra=`<div class="extra-box" style="${exBg.critical}"><span class="extra-title" style="${etC.critical}">危疾保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">保障至</label><input class="fi" data-f="critTo" value="${p.critTo||''}" placeholder="例：100歲 / 終身"></div><div class="ff"><label class="fl">保障疾病數目</label><input class="fi" data-f="critDis" value="${_critDis}" placeholder="例：128種"></div></div><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">頭10年額外保額 (%)</label><input class="fi" data-f="critExtra" value="${_critExtra}" placeholder="例：100"></div><div></div></div><div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:end;"><div class="ff"><label class="fl">貨幣</label><select class="fi" data-f="critSvc" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.critSvc||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">65歲退保價值</div><input data-f="crit65" value="${p.crit65||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">75歲退保價值</div><input data-f="crit75" value="${p.crit75||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div></div></div>`;}
+  else if(t==='general'){
+    const pn=p.planName||'';
+    const isAccident=pn.includes('倍安寶')||pn.includes('安健寶');
+    const isTravel=pn.includes('旅遊樂');
+    const isHome=pn.includes('家居寶')&&!pn.includes('名家寶')&&!pn.includes('業主寶');
+    const isMaid=pn.includes('僱傭寶');
+    if(isAccident){
+      const _isGenCustom=pn.includes('自行輸入');const defAccMed=_isGenCustom?'':(p.genAccMed||'HKD25,000'),defAccDeath=_isGenCustom?'':(p.genAccDeath||'HKD780,000'),defWork=_isGenCustom?'':(p.genAccWork||'N/A'),defHosp=_isGenCustom?'':(p.genHospCash||'N/A');
+      extra=`<div class="extra-box" style="${exBg.general}"><span class="extra-title" style="color:#5F5E5A;border-color:#7A7370;">一般保險保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">意外醫療費用</label><input class="fi" data-f="genAccMed" value="${defAccMed}" placeholder="HKD780,000" oninput="fmtHKD(this)"></div><div class="ff"><label class="fl">意外死亡及永久性傷殘</label><input class="fi" data-f="genAccDeath" value="${defAccDeath}" placeholder="HKD25,000" oninput="fmtHKD(this)"></div></div><div class="g2"><div class="ff"><label class="fl">暫時喪失工作能力</label><input class="fi" data-f="genAccWork" value="${defWork}" placeholder="N/A"></div><div class="ff"><label class="fl">住院現金</label><input class="fi" data-f="genHospCash" value="${defHosp}" placeholder="N/A"></div></div></div>`;
+    } else if(isTravel){
+      const _isGenCustom=pn.includes('自行輸入');const defType=_isGenCustom?'':(p.genTravelType||'全年'),defLug=_isGenCustom?'':(p.genLuggage||'HKD20,000'),defCancel=_isGenCustom?'':(p.genTripCancel||'HKD30,000'),defDelay=_isGenCustom?'':(p.genTripDelay||'HKD3,000'),defCash=_isGenCustom?'':(p.genCash||'HKD26,000'),defMed=_isGenCustom?'':(p.genMedical||'HKD1,200,000');
+      extra=`<div class="extra-box" style="${exBg.general}"><span class="extra-title" style="color:#5F5E5A;border-color:#7A7370;">一般保險保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">計劃類型</label><input class="fi" data-f="genTravelType" value="${defType}" placeholder="全年"></div><div class="ff"><label class="fl">行李及個人財物保障</label><input class="fi" data-f="genLuggage" value="${defLug}" placeholder="HKD20,000"></div></div><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">取消旅程保障</label><input class="fi" data-f="genTripCancel" value="${defCancel}" placeholder="HKD30,000"></div><div class="ff"><label class="fl">旅程延誤保障</label><input class="fi" data-f="genTripDelay" value="${defDelay}" placeholder="HKD3,000"></div></div><div class="g2"><div class="ff"><label class="fl">個人現金/信用卡/旅遊證件</label><input class="fi" data-f="genCash" value="${defCash}" placeholder="HKD26,000"></div><div class="ff"><label class="fl">醫療費用保障</label><input class="fi" data-f="genMedical" value="${defMed}" placeholder="HKD1,200,000"></div></div></div>`;
+    } else if(isHome){
+      const curPlan=p.genHomePlan||'小康之家';
+      const hd=HOME_DEFAULTS[curPlan]||HOME_DEFAULTS['小康之家'];
+      const defContents=p.genHomeContents||hd.contents,defFurn=p.genHomeFurniture||hd.furniture,defPersonal=p.genHomePersonal||hd.personal,defCash=p.genHomeCash||hd.cash,defBuilding=p.genHomeBuilding||hd.building;
+      extra=`<div class="extra-box" style="${exBg.general}"><span class="extra-title" style="color:#5F5E5A;border-color:#7A7370;">一般保險保障詳情</span><div class="ff" style="margin-bottom:10px;"><label class="fl">計劃類型</label><select class="fi" data-f="genHomePlan" onchange="onHomeTypeChange(this)"><option${curPlan==='小康之家'?' selected':''}>小康之家</option><option${curPlan==='卓越之家'?' selected':''}>卓越之家</option></select></div><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">家居財物保障</label><input class="fi" data-f="genHomeContents" value="${defContents}" placeholder="HKD750,000/年"></div><div class="ff"><label class="fl" style="padding-left:8px;border-left:2px solid #b4b2a9;">└ 傢私、家居用品或電器</label><input class="fi" data-f="genHomeFurniture" value="${defFurn}" placeholder="HKD75,000/年"></div></div><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">全球個人財物保障</label><input class="fi" data-f="genHomePersonal" value="${defPersonal}" placeholder="HKD20,000/年"></div><div class="ff"><label class="fl">遺失現金/信用卡/網絡保障</label><input class="fi" data-f="genHomeCash" value="${defCash}" placeholder="HKD64,000/年"></div></div><div class="ff" style="margin-bottom:8px;"><label class="fl">樓宇結構保障</label><input class="fi" data-f="genHomeBuilding" value="${defBuilding}" placeholder="N/A"></div><div style="font-size:10px;color:#9a8a78;margin-top:4px;padding:5px 8px;background:rgba(255,255,255,.6);border-radius:4px;">💡 傢私、家居用品或電器保障包括於家居財物保障內</div></div>`;
+    } else if(isMaid){
+      const curPlan=p.genMaidPlan||'基本計劃';const isComp=curPlan==='綜合計劃';const hasCICheck=isComp&&(p.genMaidCICheck===true||p.genMaidCICheck==='true');const defAgency=p.genMaidAgency||'HKD15,000/年',defOut=p.genMaidOutpatient||'HKD4,000/年',defHosp=p.genMaidHospital||'HKD30,000/年',defCI=p.genMaidCI||'HKD120,000/年',defPeriod=p.genMaidPeriod||'一年';
+      extra=`<div class="extra-box" style="${exBg.general}"><span class="extra-title" style="color:#5F5E5A;border-color:#7A7370;">一般保險保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">計劃類型</label><select class="fi" data-f="genMaidPlan" onchange="onMaidPlanChange(this)"><option${curPlan==='基本計劃'?' selected':''}>基本計劃</option><option${curPlan==='綜合計劃'?' selected':''}>綜合計劃</option></select></div><div class="ff"><label class="fl">保障期</label><select class="fi" data-f="genMaidPeriod"><option${defPeriod==='一年'?' selected':''}>一年</option><option${defPeriod==='兩年'?' selected':''}>兩年</option></select></div></div><div class="g3" style="margin-bottom:10px;"><div class="ff"><label class="fl">改聘費用</label><input class="fi" data-f="genMaidAgency" value="${defAgency}" placeholder="HKD15,000/年" oninput="fmtHKD(this)"></div><div class="ff"><label class="fl">門診費用</label><input class="fi" data-f="genMaidOutpatient" value="${defOut}" placeholder="HKD4,000/年" oninput="fmtHKD(this)"></div><div class="ff"><label class="fl">住院及手術費用</label><input class="fi" data-f="genMaidHospital" value="${defHosp}" placeholder="HKD30,000/年" oninput="fmtHKD(this)"></div></div><div class="maid-ci-row" style="margin-bottom:8px;${isComp?'':'display:none;'}"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5F5E5A;cursor:pointer;"><input type="checkbox" data-f="genMaidCICheck" ${hasCICheck?'checked':''} onchange="onMaidCICheck(this)" style="width:16px;height:16px;accent-color:#A08060;"> 危疾附加醫療計劃</label></div><div class="maid-ci-field ff" style="margin-bottom:4px;${hasCICheck?'':'display:none;'}"><label class="fl">危疾附加醫療保障</label><input class="fi" data-f="genMaidCI" value="${defCI}" placeholder="HKD120,000/年" oninput="fmtHKD(this)"></div></div>`;
+    }
+  }
+  else if(t==='life'){extra=`<div class="extra-box" style="${exBg.life}"><span class="extra-title" style="${etC.life}">人壽保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">保障至</label><input class="fi" data-f="lifeTo" value="${p.lifeTo||''}" placeholder="例：100歲 / 終身"></div><div></div></div><div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:end;"><div class="ff"><label class="fl">貨幣</label><select class="fi" data-f="lifeSvc" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.lifeSvc||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">65歲退保價值</div><input data-f="life65" value="${p.life65||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">75歲退保價值</div><input data-f="life75" value="${p.life75||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div></div></div>`;}
+  return`<div class="pc" data-mi="${mi}" data-pi="${pi}">
+  <div class="pc-top">
+    <select class="type-sel" data-f="type" onchange="onTypeChange(this,${mi},${pi})"><option value="" ${!t?'selected':''} style="color:#9a8a78;">選擇類型</option>${Object.entries(TYPE_ZH).map(([v,l])=>`<option value="${v}"${t===v?' selected':''}>${l}</option>`).join('')}</select>
+    <button onclick="removePolicy(${mi},${pi})" style="background:none;border:none;cursor:pointer;color:#9a8a78;display:flex;align-items:center;justify-content:center;width:28px;height:28px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="g2" style="margin-bottom:12px;${!t?'display:none;':''}">
+    <div class="ff"><label class="fl">計劃名稱</label>
+      <select class="fi" data-f="planName" style="font-size:13px;" onchange="onPlanChange(this);if(this.closest('.pc').querySelector('[data-f=\\'type\\']').value==='medical')onMedPlanChange(this);if(this.closest('.pc').querySelector('[data-f=\\'type\\']').value==='general')onGeneralPlanChange(this,${mi},${pi});if(this.closest('.pc').querySelector('[data-f=\\'type\\']').value==='critical')onCritPlanChange(this,${mi},${pi})">${prods.map(n=>`<option${(p.planName||prods[0])===n?' selected':''}>${n}</option>`).join('')}</select>
+      ${isC?`<input class="fi" data-f="customName" value="${(p.customName||'').includes('自行輸入')?'':(p.customName||'')}" placeholder="自行輸入計劃名稱" style="margin-top:6px;">`:''}
+    </div>
+    <div class="ff"><label class="fl">保單號碼</label><input class="fi" data-f="policyNo" value="${p.policyNo||''}" placeholder="12345678"></div>
+  </div>
+  <div style="${!t?'display:none;':''}">
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="g2">
+      <div class="ff"><label class="fl">繳費</label><select class="fi" data-f="mode" style="font-size:13px;">${MODES.map(m=>`<option value="${m.v}"${(p.mode||'annual')===m.v?' selected':''}>${m.l}</option>`).join('')}</select></div>
+      <div class="ff"><label class="fl">貨幣</label><select class="fi" data-f="currency" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.currency||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="g2">
+      <div class="ff"><label class="fl">保費</label><input class="fi" data-f="premium" value="${p.premium||''}" placeholder="5,000" style="font-size:13px;" oninput="this.value=acDec(this.value)"></div>
+      ${(t!=='medical'&&t!=='general')?`<div class="ff"><label class="fl">保額</label><input class="fi" data-f="sumAssured" value="${p.sumAssured||''}" placeholder="1,000,000" style="font-size:13px;" oninput="this.value=ac(this.value)"></div>`:`<div class="ff"><input type="hidden" data-f="sumAssured" value="${p.sumAssured||''}"></div>`}
+    </div>
+  </div>
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="ff"><label class="fl">生效日期</label><input class="fi" type="date" data-f="effectiveDate" value="${p.effectiveDate||''}" style="font-size:13px;"></div>
+    <div class="ff"><label class="fl">繳費年期</label><input class="fi" data-f="paymentTerm" value="${p.paymentTerm||''}" placeholder="20年"></div>
+  </div>
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="ff"><label class="fl">下次檢視</label><input class="fi" type="date" data-f="nextReview" value="${p.nextReview||''}" style="font-size:13px;"></div>
+    <div></div>
+  </div>
+  ${extra}
+  </div>
+</div>`;}
+
+// ─── PIE ───────────────────────────────────────────────────────────────────────
+function buildPieData(members){const tm={};let total=0;(members||[]).forEach(m=>(m.policies||[]).forEach(p=>{const raw=parseFloat((p.premium||'0').replace(/,/g,''));if(isNaN(raw)||raw<=0)return;const a=p.mode==='monthly'?raw*12:p.mode==='quarterly'?raw*4:raw;const h=p.currency==='HKD'?a:(toHKD(a,p.currency)||a);tm[p.type]=(tm[p.type]||0)+h;total+=h;}));const pd=Object.entries(tm).sort((a,b)=>b[1]-a[1]).map(([t,v])=>({type:t,val:v,color:WCOL[t]||'#999'}));return{pieData:pd,grandHKD:total,typeMap:tm};}
+function buildPieSVG(pieData,size){
+  const cx=size/2,cy=size/2,r=size*0.43,inner=size*0.23,midR=(r+inner)/2;
+  const total=pieData.reduce((s,d)=>s+d.val,0);
+  if(!total)return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#e8e2d8"/><circle cx="${cx}" cy="${cy}" r="${inner}" fill="#faf7f2"/></svg>`;
+  const polar=(r2,a)=>[cx+r2*Math.cos(a),cy+r2*Math.sin(a)];
+  const arc=(s,e,or,ir)=>{const[x1,y1]=polar(or,s),[x2,y2]=polar(or,e),[x3,y3]=polar(ir,e),[x4,y4]=polar(ir,s);return`M${x1},${y1} A${or},${or} 0 ${(e-s)>Math.PI?1:0},1 ${x2},${y2} L${x3},${y3} A${ir},${ir} 0 ${(e-s)>Math.PI?1:0},0 ${x4},${y4} Z`;};
+  let start=-Math.PI/2,paths='',labels='';
+  const gap=0.025;
+  const pctSize=Math.round(size*0.052),zhSize=Math.round(size*0.038);
+  pieData.forEach(d=>{
+    const sw=(d.val/total)*Math.PI*2-gap,end=start+sw;
+    paths+=`<path d="${arc(start,end,r,inner)}" fill="${d.color}" stroke="#fff" stroke-width="1.5"/>`;
+    const pct=Math.round(d.val/total*100);
+    if(pct>=6){
+      const mid=start+sw/2,[lx,ly]=polar(midR,mid);
+      const showZh=pct>=16,zh=TYPE_ZH[d.type]||d.type;
+      if(showZh){
+        const yp=ly-pctSize*0.55;
+        // pct text with stroke outline for crispness
+        labels+=`<text x="${lx}" y="${yp}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="${pctSize}" font-weight="800" stroke="#0004" stroke-width="3" stroke-linejoin="round" paint-order="stroke" fill="#fff">${pct}%</text>`;
+        labels+=`<text x="${lx}" y="${ly+pctSize*0.55}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="${zhSize}" font-weight="700" stroke="#0003" stroke-width="2.5" stroke-linejoin="round" paint-order="stroke" fill="#fff">${zh}</text>`;
+      } else {
+        labels+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="${pctSize}" font-weight="800" stroke="#0004" stroke-width="3" stroke-linejoin="round" paint-order="stroke" fill="#fff">${pct}%</text>`;
+      }
+    }
+    start+=sw+gap;
+  });
+  const cLabelSize=Math.round(size*0.068),cSubSize=Math.round(size*0.052);
+  return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${paths}<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#faf7f2" stroke="#d4cdc4" stroke-width="1"/>${labels}<text x="${cx}" y="${cy-cSubSize*0.4}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="${cLabelSize}" font-weight="700" fill="#2a1a0a">保障</text><text x="${cx}" y="${cy+cSubSize*0.85}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="${cSubSize}" fill="#5a4a38">分佈</text></svg>`;
+}
+
+// ─── WEALTH PYRAMID SVG ────────────────────────────────────────────────────────
+function buildWealthPyramid(policies){
+  const types=new Set((policies||[]).map(p=>p.type));
+  const hasMed=types.has('medical'), hasCrit=types.has('critical');
+  const hasSav=types.has('savings'), hasAnn=types.has('annuity');
+  const hasFund=types.has('fund'), hasSpec=types.has('speculative');
+  const protPct=Math.round((hasMed?50:0)+(hasCrit?50:0));
+  const accPct =Math.round((hasSav?50:0)+(hasAnn?50:0));
+  const growPct=hasFund?100:0;
+  const overall=Math.round(protPct*0.5+accPct*0.3+growPct*0.2);
+
+  // Health bar
+  const barH=160, barY0=28;
+  const fillH=Math.round(barH*overall/100);
+  const fillY=barY0+barH-fillH;
+
+  // Triangle: apex(90,22) base L(22,178) R(158,178)
+  // x_L(y)=90-(y-22)*(68/156)  x_R(y)=90+(y-22)*(68/156)
+  // Layer mids: 投機 y=39, 成長 y=75, 累積 y=113, 保護 y=155
+  // x_L: 82.6, 66.9, 50.3, 32.2   x_R: 97.4, 113.1, 129.7, 147.8
+
+  const pctLbl=(x,y,p,gap,ok)=>{
+    const col=ok?'#276B0C':'#C8644A';
+    const txt=ok?`✓${p}%`:(gap?`⚠${p}%`:`${p}%`);
+    return `<text x="${x}" y="${y}" text-anchor="start" font-family="Arial,sans-serif" font-size="9" font-weight="800" fill="${col}">${txt}</text>`;
+  };
+
+  return `<svg width="100%" viewBox="0 0 216 232" xmlns="http://www.w3.org/2000/svg" style="display:block;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+<defs>
+  <clipPath id="wpT"><polygon points="105,28 190,188 20,188"/></clipPath>
+  <clipPath id="wpB"><rect x="198" y="28" width="9" height="160" rx="4.5"/></clipPath>
+  <linearGradient id="wpG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#E31837"/><stop offset="100%" stop-color="#003865"/>
+  </linearGradient>
+  <linearGradient id="shG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1A5A9A"/><stop offset="100%" stop-color="#002850"/>
+  </linearGradient>
+</defs>
+
+<!-- title -->
+<text x="105" y="16" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="11.8" font-weight="700" fill="#003865" letter-spacing="0.12em">理財健康評估</text>
+<line x1="20" y1="20" x2="190" y2="20" stroke="#E31837" stroke-width="0.8" stroke-linecap="round"/>
+
+<!-- Triangle bg -->
+<!-- apex(105,28) L(20,188) R(190,188)  halfW=85 h=160  slope=85/160=0.531 -->
+<!-- x_L(y)=105-(y-28)*0.531   x_R(y)=105+(y-28)*0.531 -->
+<!-- dividers: y=68,108,148   mids: y=48,88,128,168 -->
+<!-- x_L @ y48=83.5  y88=61.2  y128=38.8  y168=16.4 -->
+<!-- x_R @ y48=126.5 y88=148.8 y128=171.2 y168=183.6 -->
+<polygon points="105,28 190,188 20,188" fill="#f5f0e8"/>
+
+<g clip-path="url(#wpT)">
+  <rect x="0" y="30"  width="210" height="36" rx="6" fill="#C8644A" opacity="${hasFund||hasSpec?'0.35':'0.12'}"/>
+  <rect x="0" y="70"  width="210" height="36" rx="6" fill="#A87028" opacity="${growPct>0?'0.55':'0.22'}"/>
+  <rect x="0" y="110" width="210" height="36" rx="6" fill="#C8913A" opacity="${accPct>0?'1':'0.28'}"/>
+  <rect x="0" y="150" width="210" height="36" rx="6" fill="#E2B84A" opacity="${protPct>0?'0.85':'0.28'}"/>
+  
+
+  <!-- 投機層 Bitcoin centre=(105,48) -->
+  <g transform="translate(105,46)" opacity="${hasFund||hasSpec?'1':'0.35'}">
+    <circle cx="0" cy="0" r="5" fill="rgba(255,165,30,0.88)" stroke="rgba(255,210,70,0.85)" stroke-width="0.7"/>
+    <line x1="-0.9" y1="-3.5" x2="-0.9" y2="3.5" stroke="rgba(255,255,255,0.95)" stroke-width="0.85" stroke-linecap="round"/>
+    <path d="M-0.9,-2.3 C0.4,-2.3 2.3,-2 2.3,-0.6 C2.3,0.8 0.4,0.6 -0.9,0.6" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M-0.9,0.6 C0.6,0.6 2.6,0.9 2.6,2.3 C2.6,3.7 0.6,3.5 -0.9,3.5" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="0.8" stroke-linecap="round"/>
+    <line x1="-1.8" y1="-3.5" x2="0.2" y2="-3.5" stroke="rgba(255,255,255,0.95)" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="-1.8" y1="3.5"  x2="0.2" y2="3.5"  stroke="rgba(255,255,255,0.95)" stroke-width="0.7" stroke-linecap="round"/>
+  </g>
+  <text x="105" y="57" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${hasFund||hasSpec?'0.85':'0.38'})">衍生產品</text>
+
+  <!-- 成長層 centre y=88, icons at x=88 x=118 -->
+  <g transform="translate(88,85)" opacity="${growPct>0?'0.7':'0.35'}">
+    <rect x="-6" y="3.5"  width="2.8" height="5.5" rx="0.6" fill="#FFE066"/>
+    <rect x="-2.5" y="0"  width="2.8" height="9"   rx="0.6" fill="#FFD700"/>
+    <rect x="1.5"  y="-5" width="2.8" height="14"  rx="0.6" fill="#FFC200"/>
+    <polyline points="-4.5,-2.5 -1,-0.8 2,1 5.5,-4.5" fill="none" stroke="#fff" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="88" y="97" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${growPct>0?'0.7':'0.38'})">股票基金</text>
+
+  <g transform="translate(118,85)" opacity="${growPct>0?'0.7':'0.35'}">
+    <rect x="-6.5" y="-1" width="13" height="10" rx="1.1" fill="#FDEAC0" stroke="rgba(255,255,255,0.75)" stroke-width="0.65"/>
+    <path d="M-7.5,0 L0,-8.5 L7.5,0 Z" fill="#E8A830" stroke="rgba(255,255,255,0.8)" stroke-width="0.65" stroke-linejoin="round"/>
+    <rect x="-4.5" y="1.5" width="3"   height="4.5" rx="0.6" fill="#ADE0F5"/>
+    <rect x="1"    y="2.5" width="3"   height="6.5" rx="0.6" fill="#C8832A"/>
+  </g>
+  <text x="118" y="97" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${growPct>0?'0.7':'0.38'})">房地產</text>
+
+  <!-- 累積層 centre y=128, icons at x=88 x=118 -->
+  <g transform="translate(88,125)" opacity="${hasSav||hasAnn?'0.75':'0.35'}">
+    <ellipse cx="0" cy="1"   rx="7.5" ry="6"   fill="#F9B8C4" stroke="#E890A0" stroke-width="0.8"/>
+    <ellipse cx="7" cy="2"   rx="2.5" ry="2"   fill="#F8A0B0" stroke="#E080A0" stroke-width="0.6"/>
+    <circle cx="6.4" cy="1.5" r="0.5" fill="rgba(160,60,80,0.75)"/>
+    <circle cx="7.6" cy="1.5" r="0.5" fill="rgba(160,60,80,0.75)"/>
+    <circle cx="2.8" cy="-1.4" r="1.1" fill="#4A3028"/>
+    <circle cx="3.2" cy="-1.7" r="0.35" fill="#fff"/>
+    <path d="M1,-4.5 Q3,-8.5 6,-6.5 Q4,-5 2,-4 Z" fill="#F8B0B8" stroke="#E890A0" stroke-width="0.55"/>
+    <path d="M-7.5,1 Q-10,-0.5 -9.5,-3.5 Q-9,-6.5 -10,-8" fill="none" stroke="#F4A0A8" stroke-width="1" stroke-linecap="round"/>
+    <rect x="-1.8" y="-7" width="4.5" height="1.4" rx="0.7" fill="#C87060" stroke="#E89098" stroke-width="0.45"/>
+    <path d="M-3.5,6.5 Q-4,9 -3,10.5"  fill="none" stroke="#F4A0A8" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M-1,7 Q-1,9.5 0,11"       fill="none" stroke="#F4A0A8" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M2.5,6.5 Q3,9 3,10.5"     fill="none" stroke="#F4A0A8" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="0" cy="-10.5" r="2.5" fill="#FFD840" stroke="#F0A820" stroke-width="0.65"/>
+    <text x="0" y="-8.8" text-anchor="middle" font-family="Arial,sans-serif" font-size="3" font-weight="800" fill="#A06010">$</text>
+  </g>
+  <text x="88" y="138" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${hasSav||hasAnn?'0.7':'0.38'})">儲蓄/年金</text>
+
+  <g transform="translate(118,125)" opacity="${hasSav?'0.75':'0.35'}">
+    <path d="M-6.5,-6.5 L6.5,-6.5 L8,-3.5 L-8,-3.5 Z" fill="#FFF0C0" stroke="#E8C060" stroke-width="0.65" stroke-linejoin="round"/>
+    <rect x="-6"   y="-3.5" width="2.8" height="9.5" rx="0.65" fill="#FAEAB0" stroke="#D8B048" stroke-width="0.55"/>
+    <rect x="-2.2" y="-3.5" width="2.8" height="9.5" rx="0.65" fill="#FCF0C0" stroke="#D8B048" stroke-width="0.55"/>
+    <rect x="1.8"  y="-3.5" width="2.8" height="9.5" rx="0.65" fill="#FAEAB0" stroke="#D8B048" stroke-width="0.55"/>
+    <rect x="-7"   y="6"    width="14"  height="2"   rx="0.65" fill="#F5E0A0" stroke="#C8A038" stroke-width="0.5"/>
+    <rect x="3"    y="3"    width="9"   height="5.5" rx="0.9"  fill="#8BC870" stroke="#5A9840" stroke-width="0.55" transform="rotate(-10,7.5,5.5)"/>
+    <rect x="3.5"  y="4.5"  width="9"   height="5.5" rx="0.9"  fill="#A0D878" stroke="#5A9840" stroke-width="0.6"/>
+    <ellipse cx="8" cy="7.3" rx="2" ry="1.3" fill="#70B850" stroke="#5A9840" stroke-width="0.4"/>
+    <line x1="5"   y1="5.8" x2="6.5"  y2="5.8" stroke="#5A9840" stroke-width="0.45" stroke-linecap="round"/>
+    <line x1="9.5" y1="5.8" x2="11"   y2="5.8" stroke="#5A9840" stroke-width="0.45" stroke-linecap="round"/>
+  </g>
+  <text x="118" y="138" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${hasSav?'0.7':'0.38'})">定存</text>
+
+  <!-- 保護層 centre y=168, scale 0.75 icons, icons at x=86 x=120 -->
+  <g transform="translate(86,165) scale(0.75)" opacity="${hasMed||hasCrit?'0.9':'0.38'}">
+    <rect x="-10" y="-14" width="21" height="27" rx="1.8" fill="rgba(0,0,0,0.1)" transform="translate(0.5,0.7)"/>
+    <rect x="-10" y="-14" width="21" height="27" rx="1.8" fill="#FFF8E8" stroke="#D8B870" stroke-width="0.8"/>
+    <rect x="-10" y="-14" width="21" height="6.5" rx="1.8" fill="#003865"/>
+    <rect x="-10" y="-10" width="21" height="2.5" fill="#003865"/>
+    <rect x="-10" y="-7.5" width="21" height="1.3" fill="#E31837" opacity="0.85"/>
+    <path d="M7.5,-14 L11,-14 L11,-10.5" fill="none" stroke="#D8B870" stroke-width="0.6" stroke-linejoin="round"/>
+    <path d="M7.5,-14 L7.5,-10.5 L11,-10.5" fill="#EDE0B8" stroke="#D8B870" stroke-width="0.5"/>
+    <line x1="-7" y1="-12.2" x2="3.5" y2="-12.2" stroke="rgba(255,255,255,0.6)" stroke-width="0.75" stroke-linecap="round"/>
+    <line x1="-7" y1="-4"   x2="7"   y2="-4"   stroke="#D8C898" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="-7" y1="-0.5" x2="8"   y2="-0.5" stroke="#D8C898" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="-7" y1="3"    x2="6"   y2="3"    stroke="#D8C898" stroke-width="0.7" stroke-linecap="round"/>
+    <g transform="translate(-5,8.5)">
+      <path d="M0,-6 L4.8,-3.8 L4.8,0.5 Q4.8,5.5 0,7.8 Q-4.8,5.5 -4.8,0.5 L-4.8,-3.8 Z" fill="url(#shG)" stroke="rgba(120,180,240,0.4)" stroke-width="0.6"/>
+      <path d="M-2.2,0.5 L-0.7,2.8 L3,-3.5" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <text x="86" y="179" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${hasMed||hasCrit?'0.95':'0.38'})">保險</text>
+
+  <g transform="translate(120,165) scale(0.75)" opacity="${hasMed||hasCrit?'0.9':'0.38'}">
+    <rect x="-11" y="-13" width="22" height="20" rx="2" fill="rgba(0,0,0,0.12)" transform="translate(0.5,0.7)"/>
+    <rect x="-11" y="-13" width="22" height="20" rx="2" fill="#9AAAB0" stroke="#6A7A80" stroke-width="0.9"/>
+    <rect x="-8.5" y="-10.5" width="17" height="15" rx="1.3" fill="#AABAC0" stroke="#6A7A80" stroke-width="0.55"/>
+    <circle cx="2"  cy="-3.5" r="6"   fill="#8A9AA0" stroke="#6A7A80" stroke-width="0.7"/>
+    <circle cx="2"  cy="-3.5" r="4.2" fill="#7A8A90" stroke="#6A7A80" stroke-width="0.55"/>
+    <circle cx="2"  cy="-3.5" r="1.5" fill="#5A6A70" stroke="#4A5A60" stroke-width="0.45"/>
+    <line x1="2" y1="-9.5" x2="2" y2="-8"   stroke="#C8D8D8" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="2" y1="2.5"  x2="2" y2="1"    stroke="#C8D8D8" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="-4" y1="-3.5"  x2="-2.8" y2="-3.5" stroke="#C8D8D8" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="8"  y1="-3.5"  x2="6.8"  y2="-3.5" stroke="#C8D8D8" stroke-width="0.7" stroke-linecap="round"/>
+    <line x1="2" y1="-3.5" x2="2" y2="-7" stroke="#E8C060" stroke-width="0.9" stroke-linecap="round"/>
+    <rect x="-11" y="-6" width="3.5" height="5" rx="1.7" fill="#5A6A70" stroke="#4A5A60" stroke-width="0.6"/>
+    <circle cx="-7" cy="-9.5" r="1.2" fill="#5A6A70" stroke="#4A5A60" stroke-width="0.45"/>
+    <circle cx="-7" cy="2.5"  r="1.2" fill="#5A6A70" stroke="#4A5A60" stroke-width="0.45"/>
+    <rect x="-7.5" y="6.5" width="4"  height="2.5" rx="0.9" fill="#5A6A70" stroke="#4A5A60" stroke-width="0.5"/>
+    <rect x="4"    y="6.5" width="4"  height="2.5" rx="0.9" fill="#5A6A70" stroke="#4A5A60" stroke-width="0.5"/>
+    <rect x="3"    y="1.5" width="9"  height="5.5" rx="0.9" fill="#8BC870" stroke="#5A9840" stroke-width="0.5" transform="rotate(-8,7.5,4.5)"/>
+    <rect x="3.5"  y="3"   width="9"  height="5.5" rx="0.9" fill="#A8D880" stroke="#5A9840" stroke-width="0.55"/>
+    <ellipse cx="8" cy="5.8" rx="1.8" ry="1.1" fill="#70B850" stroke="#5A9840" stroke-width="0.35"/>
+    <line x1="5"   y1="4.2" x2="6.3"  y2="4.2" stroke="#5A9840" stroke-width="0.4" stroke-linecap="round"/>
+    <line x1="9.8" y1="4.2" x2="11.2" y2="4.2" stroke="#5A9840" stroke-width="0.4" stroke-linecap="round"/>
+  </g>
+  <text x="120" y="179" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(255,255,255,${hasMed||hasCrit?'0.95':'0.38'})">緊急備用金</text>
+
+</g>
+
+<!-- LEFT pills: right edge = x_L(midY)-1, pill w=28 h=10 -->
+<!-- 投機 midY=48: x_L=94.4 → x=65 -->
+<rect x="65" y="43"  width="28" height="10" rx="5" fill="rgba(180,80,55,0.82)"  stroke="rgba(220,120,90,0.5)"  stroke-width="0.5"/>
+<text x="79" y="50.5" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="6.5" font-weight="700" fill="#fff">投機層</text>
+
+<!-- 成長 midY=88: x_L=73.1 → x=44 -->
+<rect x="44" y="83"  width="28" height="10" rx="5" fill="rgba(120,75,25,0.82)"  stroke="rgba(180,120,50,0.5)"  stroke-width="0.5"/>
+<text x="58" y="90.5" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="6.5" font-weight="700" fill="#fff">成長層</text>
+
+<!-- 累積 midY=128: x_L=51.9 → x=23 -->
+<rect x="23" y="123" width="28" height="10" rx="5" fill="rgba(160,105,35,0.82)" stroke="rgba(160,104,26,0.5)" stroke-width="0.5"/>
+<text x="37" y="130.5" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="6.5" font-weight="700" fill="#fff">累積層</text>
+
+<!-- 保護 x_L(163)=33.3, pill right=29 < 33.3 → x=7 w=22 -->
+<rect x="7"  y="163" width="22" height="10" rx="5" fill="rgba(160,125,35,0.85)" stroke="rgba(154,120,32,0.5)" stroke-width="0.5"/>
+<text x="18" y="170.5" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="5.8" font-weight="700" fill="#fff">保護層</text>
+
+<!-- RIGHT % labels: text-anchor=start, x = x_R(midY)+2 -->
+${pctLbl(117, 50,  growPct, growPct===0,  false)}
+${pctLbl(138, 90,  growPct, growPct===0,  false)}
+${pctLbl(159, 130, accPct,  accPct<100,   false)}
+${pctLbl(180, 170, protPct, protPct<100,  protPct===100)}
+
+<!-- Health Bar x=198 -->
+<rect x="198" y="${barY0}" width="9" height="${barH}" rx="4.5" fill="#EAE0CC" stroke="#C4A860" stroke-width="0.6"/>
+<g clip-path="url(#wpB)">
+  ${fillH>0?`<rect x="198" y="${fillY}" width="9" height="${fillH}" fill="url(#wpG)" opacity="0.93"/>` : ''}
+</g>
+<line x1="196" y1="${Math.round(barY0+barH*0.25)}" x2="209" y2="${Math.round(barY0+barH*0.25)}" stroke="#B89848" stroke-width="0.5" stroke-dasharray="1.5,1.2" opacity="0.6"/>
+<line x1="196" y1="${Math.round(barY0+barH*0.50)}" x2="209" y2="${Math.round(barY0+barH*0.50)}" stroke="#B89848" stroke-width="0.5" stroke-dasharray="1.5,1.2" opacity="0.6"/>
+<line x1="196" y1="${Math.round(barY0+barH*0.75)}" x2="209" y2="${Math.round(barY0+barH*0.75)}" stroke="#B89848" stroke-width="0.5" stroke-dasharray="1.5,1.2" opacity="0.6"/>
+${fillH>8?`<text x="202.5" y="${fillY-2}" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="800" fill="#003865">${overall}%</text>`:''}
+<text x="202.5" y="196" text-anchor="middle" font-family="'PingFang TC',Arial,sans-serif" font-size="7" font-weight="700" fill="#7A5C2E">健康值</text>
+</svg>`;
+}
+
+
+// ─── PRINT ─────────────────────────────────────────────────────────────────────
+function doSavePNG(){
+  const w=window.open('about:blank','_blank');
+  if(!w){toast('請允許彈出視窗','err');return;}
+  buildPrintContent('png',w);
+}
+function doPrint(){
+  const w=window.open('about:blank','_blank');
+  if(!w){toast('請允許彈出視窗','err');return;}
+  buildPrintContent('print',w);
+}
+function buildPrintContent(mode,w){
+  collectState();
+  const{fname='',rdate='',adv='',advPhone='',advIG='',remarks='',clientType='family',members=[]}=S;
+  const isSingle=clientType==='single';
+  const subtitle=isSingle?`個人保單總覽 — ${fname}`:`家庭保單總覽 — ${fname}`;
+  const totLabel=isSingle?'年度總保費':'全家年度總保費';
+  const today=fD(rdate);
+  const{pieData,grandHKD}=buildPieData(members);
+  const pieSVG=buildPieSVG(pieData,190);
+
+  // helper: effective SA for a policy (crit uses base + 10yr extra)
+  const effSA=p=>{const base=parseFloat((p.sumAssured||'0').replace(/,/g,''));if(isNaN(base)||base<=0)return 0;if(p.type==='critical'){const exPct=parseFloat(String(p.critExtra||'0').replace(/[,%\s]/g,''));return(!isNaN(exPct)&&exPct>0)?base+base*(exPct/100):base;}return base;};
+  const critSA={},lifeSA={};
+  members.forEach(m=>(m.policies||[]).forEach(p=>{const eff=effSA(p);if(eff<=0)return;if(p.type==='critical'){const c=p.currency||'HKD';critSA[c]=(critSA[c]||0)+eff;lifeSA[c]=(lifeSA[c]||0)+eff;}if(p.type==='life'){const c=p.currency||'HKD';lifeSA[c]=(lifeSA[c]||0)+effSA(p);}}));
+  const fmtSA=m=>{const e=Object.entries(m);if(!e.length)return'—';const t=e.reduce((s,[c,a])=>s+(c==='HKD'?a:(toHKD(a,c)||a)),0);return`HKD ${fmt(t)}`;};
+  let sv65=0,sv75=0,has65=false,has75=false;
+  const toH=(n,c)=>{const r=parseFloat(String(n||'0').replace(/,/g,''));if(isNaN(r)||!r)return 0;return c==='HKD'?r:(toHKD(r,c)||r);};
+  members.forEach(m=>(m.policies||[]).forEach(p=>{if(p.type==='savings'||p.type==='annuity'){if(p.sv65){sv65+=toH(p.sv65,p.svcur||'HKD');has65=true;}if(p.sv75){sv75+=toH(p.sv75,p.svcur||'HKD');has75=true;}}if(p.type==='critical'){const c=p.critSvc||p.currency||'HKD';if(p.crit65){sv65+=toH(p.crit65,c);has65=true;}if(p.crit75){sv75+=toH(p.crit75,c);has75=true;}}if(p.type==='life'){const c=p.lifeSvc||p.currency||'HKD';if(p.life65){sv65+=toH(p.life65,c);has65=true;}if(p.life75){sv75+=toH(p.life75,c);has75=true;}}}));
+
+  let grandHKDTotal=0;
+  members.forEach(m=>(m.policies||[]).forEach(p=>{const raw=parseFloat((p.premium||'0').replace(/,/g,''));if(!isNaN(raw)&&raw>0){const a=p.mode==='monthly'?raw*12:p.mode==='quarterly'?raw*4:raw;grandHKDTotal+=p.currency==='HKD'?a:(toHKD(a,p.currency)||a);}}));
+
+  // ── Per-member pie + sidebar builder ──────────────────────────────────────
+  function buildMemberPage(m,mi){
+    let mTot=0,mCur=null;
+    (m.policies||[]).forEach(p=>{const raw=parseFloat((p.premium||'0').replace(/,/g,''));if(!isNaN(raw)&&raw>0){const a=p.mode==='monthly'?raw*12:p.mode==='quarterly'?raw*4:raw;if(!mCur||mCur===p.currency){mTot+=a;mCur=p.currency;}}});
+    const mTotHint=mTot>0&&mCur&&mCur!=='HKD'?`<br><span style="font-size:11px;opacity:.7;">≈ HKD ${fmt(toHKD(mTot,mCur)||0)}</span>`:'';
+    const mTotStr=mTot>0&&mCur?`<div style="font-size:11px;color:rgba(255,255,255,.85);font-weight:600;text-align:right;white-space:nowrap;margin-left:auto;line-height:1.5;">年保費: ${mCur} ${fmt(mTot)}${mTotHint}</div>`:'';
+    const col=AVBG[mi%6];
+    const rel=m.role?m.role.split('/')[0]:'';
+    const insuredAge=getAge(m.insuredDob||m.dob);
+
+    let polHTML='';
+    (m.policies||[]).forEach(p=>{
+      const bk=BADGE[p.type]||BADGE.life,tn=TYPE_ZH[p.type]||p.type;
+      const prem=fmtP(p.premium,p.currency,true);
+      const showSA=p.type!=='medical'&&p.type!=='general';
+      const sa=showSA?fmtP(p.sumAssured,p.currency,true):'';
+      const modeL={annual:'年繳',monthly:'月繳',quarterly:'季繳'}[p.mode]||'';
+      let ex='';
+      if(p.type==='medical'){const wardDisplay=p.ward==='自行輸入'?(p.wardCustom||'自行輸入'):p.ward;const dedDisplay=p.deductible==='自行輸入'?(p.deductibleCustom||'自行輸入'):p.deductible;ex=`<div style="margin-top:6px;background:#EAF1F8;border-radius:4px;padding:7px 9px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#003865;border-left:2px solid #003865;padding-left:5px;margin-bottom:5px;">醫療保障詳情</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;"><div class="ic"><div class="il">病房級別</div><div class="iv">${wardDisplay||'—'}</div></div><div class="ic"><div class="il">每年保額</div><div class="iv">${p.annualLimit||'—'}</div></div><div class="ic"><div class="il">終生保額</div><div class="iv">${p.lifetimeLimit||'—'}</div></div><div class="ic"><div class="il">自付額</div><div class="iv">${dedDisplay||'—'}</div></div></div></div>`;}
+      else if(p.type==='accident')ex=`<div style="margin-top:6px;background:#FEF7EC;border-radius:4px;padding:7px 9px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#7A4500;border-left:2px solid #EF9F27;padding-left:5px;margin-bottom:5px;">意外保障詳情</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;"><div class="ic"><div class="il">意外醫療</div><div class="iv">${fmtP(p.accMed,p.currency,true)}</div></div><div class="ic"><div class="il">身故</div><div class="iv">${fmtP(p.accDeath,p.currency,true)}</div></div><div class="ic"><div class="il">永久傷殘</div><div class="iv">${fmtP(p.accDisable,p.currency,true)}</div></div></div></div>`;
+      else if(p.type==='savings'||p.type==='annuity'){const sc2=p.type==='annuity'?{c:'#085041',b:'#5DCAA5'}:{c:'#276B0C',b:'#c0dd97'};if(p.sv65||p.sv75)ex=`<div style="margin-top:6px;background:#EDF5E6;border-radius:4px;padding:7px 9px;border:0.5px solid ${sc2.b};"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:${sc2.c};border-left:2px solid ${sc2.c};padding-left:5px;margin-bottom:5px;">退保價值</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><div style="background:#fff;border-radius:3px;padding:5px;text-align:center;border:0.5px solid ${sc2.b};"><div style="font-size:11px;color:${sc2.c};margin-bottom:2px;">65歲退保價值</div><div style="font-size:12px;font-weight:700;color:${sc2.c};line-height:1.5;">${fmtP(p.sv65,p.svcur,true)}</div></div><div style="background:#fff;border-radius:3px;padding:5px;text-align:center;border:0.5px solid ${sc2.b};"><div style="font-size:11px;color:${sc2.c};margin-bottom:2px;">75歲退保價值</div><div style="font-size:12px;font-weight:700;color:${sc2.c};line-height:1.5;">${fmtP(p.sv75,p.svcur,true)}</div></div></div></div>`;}
+      else if(p.type==='fund'){if(p.fundHoldings&&p.fundHoldings.length){const fRows=p.fundHoldings.map(h=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.3px dashed #fac775;font-size:10px;"><span style="color:#5a3800;">${h.name||'—'}</span><span style="font-weight:700;color:#7A4500;">${h.pct?h.pct+'%':'—'}</span></div>`).join('');ex=`<div style="margin-top:6px;background:#FEF7EC;border-radius:4px;padding:7px 9px;border:0.5px solid #fac775;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#7A4500;border-left:2px solid #B07D2A;padding-left:5px;margin-bottom:6px;">基金配置</div>${fRows}</div>`;}}
+      else if(p.type==='critical'){const saR=parseFloat((p.sumAssured||'0').replace(/,/g,''));const exR=parseFloat(String(p.critExtra||'0').replace(/[,%\s]/g,''));const exD=exR>0?`${exR}%`:(p.critExtra||'—');let totD='—';if(!isNaN(exR)&&exR>0&&!isNaN(saR)&&saR>0){const tot=saR+saR*(exR/100);const hkdNote=p.currency!=='HKD'?`<br><span style="font-size:11px;opacity:.7;">≈ HKD ${fmt(toHKD(tot,p.currency)||0)}</span>`:'';totD=`${p.currency} ${fmt(tot)}${hkdNote}`;}ex=`<div style="margin-top:6px;background:#FEF0F2;border-radius:4px;padding:7px 9px;border:0.5px solid #f5c0c9;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#B5122B;border-left:2px solid #E31837;padding-left:5px;margin-bottom:5px;">危疾保障詳情</div><div style="display:grid;grid-template-columns:${p.critTo?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr'};gap:6px;margin-bottom:5px;">${p.critTo?`<div class="ic"><div class="il">保障至</div><div class="iv">${p.critTo}</div></div>`:''}<div class="ic"><div class="il">保障疾病數目</div><div class="iv">${p.critDis||'—'}</div></div><div class="ic"><div class="il">頭10年額外保額</div><div class="iv">${exD}</div></div><div class="ic"><div class="il">頭10年總保額</div><div class="iv">${totD}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><div style="background:#fff;border-radius:3px;padding:5px;text-align:center;border:0.5px solid #f5c0c9;"><div style="font-size:11px;color:#B5122B;margin-bottom:2px;">65歲退保價值</div><div style="font-size:12px;font-weight:700;color:#B5122B;line-height:1.5;">${fmtP(p.crit65,p.critSvc||p.currency,true)}</div></div><div style="background:#fff;border-radius:3px;padding:5px;text-align:center;border:0.5px solid #f5c0c9;"><div style="font-size:11px;color:#B5122B;margin-bottom:2px;">75歲退保價值</div><div style="font-size:12px;font-weight:700;color:#B5122B;line-height:1.5;">${fmtP(p.crit75,p.critSvc||p.currency,true)}</div></div></div></div>`;}
+      else if(p.type==='general'){const pn=p.planName||'';const isAcc=pn.includes('倍安寶')||pn.includes('安健寶');const isTrav=pn.includes('旅遊樂');const isHome=pn.includes('家居寶')&&!pn.includes('名家寶')&&!pn.includes('業主寶');const isMaidP=pn.includes('僱傭寶');if(isAcc){ex=`<div style="margin-top:6px;background:#F1EFE8;border-radius:4px;padding:7px 9px;border:0.5px solid #b4b2a9;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#5F5E5A;border-left:2px solid #7A7370;padding-left:5px;margin-bottom:5px;">一般保險保障詳情</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><div class="ic"><div class="il">意外醫療費用</div><div class="iv">${p.genAccMed||'—'}</div></div><div class="ic"><div class="il">意外死亡及永久性傷殘</div><div class="iv">${p.genAccDeath||'—'}</div></div><div class="ic"><div class="il">暫時喪失工作能力</div><div class="iv">${p.genAccWork||'—'}</div></div><div class="ic"><div class="il">住院現金</div><div class="iv">${p.genHospCash||'—'}</div></div></div></div>`;}else if(isTrav){ex=`<div style="margin-top:6px;background:#F1EFE8;border-radius:4px;padding:7px 9px;border:0.5px solid #b4b2a9;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#5F5E5A;border-left:2px solid #7A7370;padding-left:5px;margin-bottom:5px;">一般保險保障詳情</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;"><div class="ic"><div class="il">計劃類型</div><div class="iv">${p.genTravelType||'—'}</div></div><div class="ic"><div class="il">行李及個人財物</div><div class="iv">${p.genLuggage||'—'}</div></div><div class="ic"><div class="il">取消旅程保障</div><div class="iv">${p.genTripCancel||'—'}</div></div><div class="ic"><div class="il">旅程延誤保障</div><div class="iv">${p.genTripDelay||'—'}</div></div><div class="ic"><div class="il">個人現金/證件</div><div class="iv">${p.genCash||'—'}</div></div><div class="ic"><div class="il">醫療費用保障</div><div class="iv">${p.genMedical||'—'}</div></div></div></div>`;}else if(isHome){ex=`<div style="margin-top:6px;background:#F1EFE8;border-radius:4px;padding:7px 9px;border:0.5px solid #b4b2a9;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#5F5E5A;border-left:2px solid #7A7370;padding-left:5px;margin-bottom:6px;">一般保險保障詳情</div><div style="display:grid;grid-template-columns:72px 1fr;gap:8px;align-items:start;"><div style="background:#fff;border-radius:3px;padding:5px 6px;border:0.5px solid #d8d4cc;text-align:center;flex-shrink:0;"><div style="font-size:11px;color:#7A7370;margin-bottom:3px;">計劃類型</div><div style="font-size:11px;font-weight:700;color:#5F5E5A;">${p.genHomePlan||'—'}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;"><div class="ic"><div class="il">家居財物保障</div><div class="iv" style="font-size:10px;">${p.genHomeContents||'—'}</div></div><div class="ic"><div class="il">遺失現金/信用卡保障</div><div class="iv" style="font-size:10px;">${p.genHomeCash||'—'}</div></div><div class="ic" style="grid-column:1/-1;padding-left:8px;border-left:2px solid #d8d4cc;"><div class="il">└ 傢私、家居用品或電器</div><div class="iv" style="font-size:10px;color:#7a6a5a;">${p.genHomeFurniture||'—'}</div></div><div class="ic"><div class="il">全球個人財物保障</div><div class="iv" style="font-size:10px;">${p.genHomePersonal||'—'}</div></div><div class="ic"><div class="il">樓宇結構保障</div><div class="iv" style="font-size:10px;">${p.genHomeBuilding||'—'}</div></div></div></div></div>`;}else if(isMaidP){const hasCIP=p.genMaidCICheck===true||p.genMaidCICheck==='true';ex=`<div style="margin-top:6px;background:#F1EFE8;border-radius:4px;padding:7px 9px;border:0.5px solid #b4b2a9;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#5F5E5A;border-left:2px solid #7A7370;padding-left:5px;margin-bottom:5px;">一般保險保障詳情</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;"><div class="ic"><div class="il">計劃類型</div><div class="iv">${p.genMaidPlan||'—'}</div></div><div class="ic"><div class="il">保障期</div><div class="iv">${p.genMaidPeriod||'—'}</div></div><div class="ic"><div class="il">改聘費用</div><div class="iv">${p.genMaidAgency||'—'}</div></div><div class="ic"><div class="il">門診費用</div><div class="iv">${p.genMaidOutpatient||'—'}</div></div><div class="ic" style="grid-column:1/-1;"><div class="il">住院及手術費用</div><div class="iv">${p.genMaidHospital||'—'}</div></div>${hasCIP?`<div class="ic" style="grid-column:1/-1;background:rgba(255,255,255,.6);padding:4px 6px;border-radius:3px;border-left:2px solid #7A7370;"><div class="il">危疾附加醫療保障</div><div class="iv">${p.genMaidCI||'—'}</div></div>`:''}</div></div>`;}}
+      else if(p.type==='life')ex=`<div style="margin-top:6px;background:#F0EFF9;border-radius:4px;padding:7px 9px;border:0.5px solid #afa9ec;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#3A2F8F;border-left:2px solid #3A2F8F;padding-left:5px;margin-bottom:5px;">人壽保障詳情</div><div style="margin-bottom:5px;"><div class="ic"><div class="il">保障至</div><div class="iv">${p.lifeTo||'—'}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><div style="background:#fff;border-radius:3px;padding:5px;text-align:center;border:0.5px solid #afa9ec;"><div style="font-size:11px;color:#3A2F8F;margin-bottom:2px;">65歲退保價值</div><div style="font-size:12px;font-weight:700;color:#3A2F8F;line-height:1.5;">${fmtP(p.life65,p.lifeSvc||p.currency,true)}</div></div><div style="background:#fff;border-radius:3px;padding:5px;text-align:center;border:0.5px solid #afa9ec;"><div style="font-size:11px;color:#3A2F8F;margin-bottom:2px;">75歲退保價值</div><div style="font-size:12px;font-weight:700;color:#3A2F8F;line-height:1.5;">${fmtP(p.life75,p.lifeSvc||p.currency,true)}</div></div></div></div>`;
+      const saCell=showSA?`<div class="ic"><div class="il">保額</div><div class="iv" style="line-height:1.35;">${sa}</div></div>`:'';
+      const _cn=(p.customName||'').includes('自行輸入')?'':(p.customName||'');
+      const pDispName=(p.planName||'').includes('自行輸入')?(_cn||tn):(p.planName||tn);
+      polHTML+=`<div class="pc"><div class="pc-hdr"><div><span style="font-size:11px;font-weight:600;padding:2px 6px;border-radius:12px;border:0.5px solid;display:inline-block;margin-bottom:2px;background:${bk.bg};color:${bk.c};border-color:${bk.b};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${tn}</span><div style="font-size:11px;font-weight:700;color:#1a1a2e;">${pDispName}</div>${p.policyNo?`<div style="font-size:11px;color:#6c757d;">保單號：${p.policyNo}</div>`:''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-size:11px;color:#888;">${modeL}</div><div style="font-size:11px;font-weight:700;color:#1a1a2e;line-height:1.35;">${prem}</div></div></div><div class="pc-body"><div class="pc-fields" style="grid-template-columns:repeat(${showSA?3:2},1fr);"><div class="ic"><div class="il">生效日</div><div class="iv">${fD(p.effectiveDate)}</div></div><div class="ic"><div class="il">繳費年期</div><div class="iv">${p.paymentTerm||'—'}</div></div>${saCell}</div>${ex}</div></div>`;
+    });
+
+    // SVG thumbnail
+    const roleKey=(m.role||'').toLowerCase();
+    let thumbSVG='';
+    if(roleKey.includes('父')){thumbSVG=`<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="32" r="32" fill="${col}" opacity=".25"/><circle cx="16" cy="11" r="5" fill="#fff"/><path d="M6 28c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="13" y="17" width="6" height="2" rx="1" fill="#fff" opacity=".6"/></svg>`;}
+    else if(roleKey.includes('母')){thumbSVG=`<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="32" r="32" fill="${col}" opacity=".25"/><circle cx="16" cy="11" r="5" fill="#fff"/><path d="M6 28c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M12 19.5 Q16 17 20 19.5" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`;}
+    else if(roleKey.includes('子女')){thumbSVG=`<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="32" r="32" fill="${col}" opacity=".25"/><circle cx="16" cy="13" r="4" fill="#fff"/><path d="M8 28c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;}
+    else if(roleKey.includes('祖父')){thumbSVG=`<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="32" r="32" fill="${col}" opacity=".25"/><circle cx="16" cy="10" r="5" fill="#fff"/><path d="M6 28c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="22" x2="16" y2="28" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg>`;}
+    else if(roleKey.includes('祖母')){thumbSVG=`<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="32" r="32" fill="${col}" opacity=".25"/><circle cx="16" cy="10" r="5" fill="#fff"/><path d="M6 28c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M11 22 Q13 20 16 21 Q19 20 21 22" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".7"/></svg>`;}
+    else{thumbSVG=`<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="32" r="32" fill="${col}" opacity=".25"/><circle cx="16" cy="11" r="5.5" fill="#fff"/><path d="M5 28c0-6.075 4.925-11 11-11s11 4.925 11 11" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;}
+
+    // Per-member pie
+    const{pieData:mPieData,grandHKD:mGrandHKD}=buildPieData([m]);
+    const mPieSVG=buildPieSVG(mPieData,170);
+    const mLegend=mPieData.map(d=>`<span style="display:flex;align-items:center;gap:3px;font-size:11px;color:#52606d;"><span style="width:7px;height:7px;border-radius:50%;background:${d.color};display:inline-block;flex-shrink:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></span>${TYPE_ZH[d.type]||d.type}</span>`).join('');
+    const mDistRows=mPieData.map(d=>{const pct=mGrandHKD>0?Math.round(d.val/mGrandHKD*100):0;return`<tr><td style="padding:3px 6px 3px 0;"><span style="display:inline-block;background:${d.color};color:#fff;font-size:11px;font-weight:600;padding:1.5px 6px;border-radius:3px;min-width:44px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${TYPE_ZH[d.type]||d.type}</span></td><td style="padding:3px 5px;text-align:right;font-size:11px;font-weight:600;color:#1a1a2e;">${fmt(d.val)}</td><td style="padding:3px 0;text-align:right;font-size:11px;color:#52606d;">${pct}%</td></tr>`;}).join('');
+
+    // Per-member SA summary
+    const mCritSA={},mLifeSA={};
+    (m.policies||[]).forEach(p=>{const eff=effSA(p);if(eff<=0)return;if(p.type==='critical'){const c=p.currency||'HKD';mCritSA[c]=(mCritSA[c]||0)+eff;mLifeSA[c]=(mLifeSA[c]||0)+eff;}if(p.type==='life'){const c=p.currency||'HKD';mLifeSA[c]=(mLifeSA[c]||0)+eff;}});
+    let mSv65=0,mSv75=0,mHas65=false,mHas75=false;
+    (m.policies||[]).forEach(p=>{if(p.type==='savings'||p.type==='annuity'){if(p.sv65){mSv65+=toH(p.sv65,p.svcur||'HKD');mHas65=true;}if(p.sv75){mSv75+=toH(p.sv75,p.svcur||'HKD');mHas75=true;}}if(p.type==='critical'){const c=p.critSvc||p.currency||'HKD';if(p.crit65){mSv65+=toH(p.crit65,c);mHas65=true;}if(p.crit75){mSv75+=toH(p.crit75,c);mHas75=true;}}if(p.type==='life'){const c=p.lifeSvc||p.currency||'HKD';if(p.life65){mSv65+=toH(p.life65,c);mHas65=true;}if(p.life75){mSv75+=toH(p.life75,c);mHas75=true;}}});
+
+    const insuredDisplay=m.insured||m.owner||'（未填）';
+    const mbHdr=`<div class="mb-hdr" style="background:${col};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${thumbSVG}</div><div style="flex:1;"><div style="color:#fff;font-size:13px;font-weight:700;">受保人: ${insuredDisplay} <span style="font-size:11px;font-weight:400;opacity:.75;">${rel}${insuredAge?` · ${insuredAge}`:''}</span></div><div style="color:rgba(255,255,255,.65);font-size:11px;margin-top:2px;">投保人: ${m.owner||'—'} | 受益人: ${m.beneficiary||'—'} | ${m.smoke==='NS'?'非吸煙':'吸煙'}</div></div>${mTotStr}</div>`;
+
+    const hdrHTML=`<div class="pg-hdr-adv">
+  <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.25);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;">${adv?adv.charAt(0).toUpperCase():'?'}</div>
+  ${adv?`<span class="adv-name" style="color:#fff;font-size:11px;font-weight:700;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${adv}</span>`:''}
+  <span style="color:rgba(255,255,255,.8);font-size:11px;white-space:nowrap;">CPA · 保誠保險理財顧問</span>
+  ${advPhone?`<span style="display:flex;align-items:center;color:rgba(255,255,255,.85);font-size:11px;white-space:nowrap;gap:3px;">${PHONE_SVG}${advPhone}</span>`:''}
+  ${advIG?`<span style="display:flex;align-items:center;color:rgba(255,255,255,.85);font-size:11px;white-space:nowrap;gap:2px;">${IG_SVG}${advIG.startsWith('@')?advIG:'@'+advIG}</span>`:''}
+</div>
+<div class="pg-hdr-main">
+  <div style="min-width:0;overflow:hidden;">
+    <div style="color:#fff;font-size:15px;font-weight:700;letter-spacing:.01em;white-space:nowrap;">保誠保險</div>
+    <div style="color:rgba(255,255,255,.55);font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${subtitle}</div>
+  </div>
+  <div style="text-align:right;font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap;flex-shrink:0;margin-left:10px;">報告日期: ${today}</div>
+</div>
+<div class="pg-hdr-red"></div>`;
+    const isLast=mi===members.length-1;
+    const footerHTML=isLast?`<div style="background:${NAVY};padding:9px 14px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.9;text-align:center;margin-top:8px;border-radius:0 0 4px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">本摘要僅供參考，詳細條款請參閱原保單文件。如有疑問，請聯絡您的顧問。<br><span style="font-size:11px;opacity:.7;">外幣換算以參考匯率計算，實際匯率以交易當日為準。Prudential Hong Kong Limited 保誠保險有限公司 | ${today}</span></div>`:'';
+
+    return `<div class="pg-page">
+${hdrHTML}
+  <div class="pg-wrap">
+    <div class="pg-main">
+      <div class="mb">${mbHdr}<div class="mb-body">${polHTML||'<div style="text-align:center;color:#aaa;font-size:10.5px;padding:.8rem;">未有保單記錄</div>'}</div></div>
+      ${remarks&&isLast?`<div style="background:#EAF1F8;border-left:3px solid #003865;padding:8px 11px;margin-top:8px;font-size:10.5px;color:#003865;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><strong>顧問備註：</strong>${remarks}</div>`:''}
+    </div>
+    <div class="pg-side">
+      <div style="background:${col};border-radius:5px;padding:8px 10px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="font-size:11px;font-weight:700;color:#fff;opacity:.9;">年度保費</div><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.4;">${mCur?mCur+' '+fmt(mTot):'—'}${mCur&&mCur!=='HKD'?`<div style="font-size:11px;opacity:.8;">≈ HKD ${fmt(toHKD(mTot,mCur)||0)}</div>`:''}</div></div>
+      ${(!isSingle&&isLast&&grandHKDTotal>0)?`<div style="background:#003865;border-radius:5px;padding:7px 10px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.8);">全家年度總保費</div><div style="font-size:13px;font-weight:700;color:#fff;line-height:1.4;">HKD ${fmt(grandHKDTotal)}</div><div style="font-size:11px;color:rgba(255,255,255,.6);">平均每月 HKD ${fmt(grandHKDTotal/12)}</div></div>`:''}
+      <div class="sec-lbl">供款分配</div>
+      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:8px;">${mPieSVG}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;justify-content:center;">${mLegend}</div></div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:9px;">${mDistRows}<tr style="border-top:1.5px solid #dde2ea;"><td style="padding:4px 6px 2px 0;font-size:11px;font-weight:700;color:#1a1a2e;">平均每月</td><td style="padding:4px 5px 2px;text-align:right;font-size:11px;font-weight:700;color:#1a1a2e;">${mGrandHKD>0?fmt(mGrandHKD/12):'—'}</td><td style="padding:4px 0 2px;text-align:right;font-size:11px;font-weight:700;color:#1a1a2e;">100%</td></tr></table>
+      <div style="height:0.5px;background:#dde2ea;margin:8px 0;"></div>
+      <div class="sec-lbl">保障摘要</div>
+      ${[['危疾保額',fmtSA(mCritSA)],['人壽保額',fmtSA(mLifeSA)],['65歲退保',mHas65?`HKD ${fmt(mSv65)}`:'—'],['75歲退保',mHas75?`HKD ${fmt(mSv75)}`:'—']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px dashed #c8c0b4;font-size:11px;"><span style="color:#7a6a5a;">${k}</span><span style="font-weight:700;color:#1a1a2e;">${v}</span></div>`).join('')}
+      <div style="height:0.5px;background:#dde2ea;margin:9px 0 4px;"></div>
+      ${buildWealthPyramid(m.policies)}
+    </div>
+  </div>
+  ${footerHTML}
+</div>`;
+  }
+
+  const pagesHTML=members.map((m,mi)=>buildMemberPage(m,mi)).join('');
+
+  // Watermark via CSS background-image on body - no HTML elements needed
+  const wmCSS=`.wm-bg::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Ctext x='50%25' y='80' font-family='Arial' font-size='18' font-weight='bold' fill='%23003865' opacity='0.07' text-anchor='middle' transform='rotate(-35,200,100)'%40pru_lilylau %E4%BF%9D%E8%AA%A0%E4%BF%9D%E9%9A%AA%3C/text%3E%3Ctext x='50%25' y='160' font-family='Arial' font-size='18' font-weight='bold' fill='%23003865' opacity='0.07' text-anchor='middle' transform='rotate(-35,200,100)'%E4%BF%9D%E8%AA%A0%E4%BF%9D%E9%9A%AA %40pru_lilylau%3C/text%3E%3C/svg%3E");background-repeat:repeat;background-size:400px 200px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+@media print{.wm-bg::before{position:fixed !important;}}`;
+
+  const css=`*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Helvetica Neue',Arial,'PingFang TC','Noto Sans CJK TC',sans-serif;font-size:11px;line-height:1.45;color:#1a1a2e;background:#fff;}
+${wmCSS}
+.ic{display:flex;flex-direction:column;}.il{font-size:11px;color:#888;margin-bottom:1.5px;letter-spacing:.02em;white-space:nowrap;}.iv{font-size:11px;font-weight:600;color:#1a1a2e;line-height:1.35;}
+.sec-lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#52606d;border-left:2px solid #E31837;padding-left:6px;margin-bottom:8px;}
+.pg-page{width:100%;box-sizing:border-box;padding:8mm 8mm 6mm 8mm;border-bottom:2px dashed #e2e6ea;}
+.pg-page:last-child{border-bottom:none;}
+.pg-wrap{display:grid;grid-template-columns:1fr 220px;}
+.pg-main{padding:9px 11px;border-right:1px solid #e2e6ea;overflow:hidden;min-width:0;}
+.pg-side{width:220px;background:#f8f9fa;padding:10px 9px;flex-shrink:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.pg-hdr-adv{display:flex;align-items:center;gap:9px;background:#A08060;padding:5px 11px;border-radius:5px 5px 0 0;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.pg-hdr-adv>*{flex-shrink:0;white-space:nowrap;}.pg-hdr-adv>.adv-name{flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.pg-hdr-main{background:#003865;padding:7px 11px;display:flex;justify-content:space-between;align-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.pg-hdr-red{height:3px;background:#E31837;margin-bottom:7px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.mb{margin-bottom:9px;border:0.5px solid #dde2ea;border-radius:5px;overflow:hidden;}
+.mb-hdr{padding:6px 9px;display:flex;align-items:center;gap:7px;overflow:hidden;}
+.mb-body{padding:7px 9px;background:#fff;}
+.pc{border:0.5px solid #e2e6ea;border-radius:3px;overflow:hidden;margin-bottom:5px;}
+.pc-hdr{padding:5px 8px;background:#f8f9fa;border-bottom:0.5px solid #e2e6ea;display:flex;justify-content:space-between;align-items:flex-start;gap:5px;}
+.pc-body{padding:5px 8px;background:#fff;}
+.pc-fields{display:grid;gap:4px;}
+@media print{
+  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+  @page{margin:0 !important;size:210mm 297mm !important;}
+  html,body{margin:0 !important;padding:0 !important;}
+  .pg-page{width:210mm !important;page-break-after:always;border-bottom:none !important;}
+  .pg-page:last-child{page-break-after:auto !important;}
+  .mb,.pc{page-break-inside:avoid !important;}
+}`;
+
+  const autoScript=mode==='png'
+    ?`<script>window.addEventListener('load',function(){var bar=document.getElementById('png-bar');var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.onload=function(){if(bar)bar.textContent='正在截圖…';var el=document.getElementById('pdf-content');html2canvas(el,{scale:3,useCORS:true,allowTaint:true,logging:false,backgroundColor:'#ffffff',imageTimeout:0}).then(function(canvas){var a=document.createElement('a');a.download='${(fname||'保單總覽').replace(/'/g,"\\'")}'+'.png';a.href=canvas.toDataURL('image/png');a.click();if(bar)bar.remove();});};document.head.appendChild(s);});<\/script>`
+    :`<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},400);});<\/script>`;
+
+  const pngBar=mode==='png'?`<div id="png-bar" style="position:fixed;top:0;left:0;width:100%;background:#003865;color:#fff;font-size:13px;font-family:Arial,sans-serif;padding:10px 16px;z-index:99999;text-align:center;">正在生成PNG，請稍候…</div>`:'';
+
+  const html=`<!DOCTYPE html><html lang="zh-HK"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${fname||'保單總覽'}</title><style>${css}</style>${autoScript}</head><body class="wm-bg">${pngBar}<div id="pdf-content">${pagesHTML}</div></body></html>`;
+
+  setTimeout(()=>{
+    try{
+      w.document.open('text/html','replace');
+      w.document.write(html);
+      w.document.close();
+    }catch(e){
+      // Fallback: use srcdoc via iframe trick
+      w.document.body.innerHTML='';
+      const b=new Blob([html],{type:'text/html'});
+      const u=URL.createObjectURL(b);
+      w.location.href=u;
+      setTimeout(()=>URL.revokeObjectURL(u),60000);
+    }
+  },100);
+}
+function _runSavePDF(){}
+
+function fmtDed(v){
+  // Strip HKD prefix and non-numeric
+  let n=v.replace(/^HKD\s*/i,'').replace(/[^0-9]/g,'');
+  if(!n)return'';
+  return'HKD '+parseInt(n,10).toLocaleString('en-HK');
+}
+// ─── MOBILE SIDEBAR ────────────────────────────────────────────────────────────
+function toggleMobSidebar(){
+  const app=document.getElementById('app');
+  app.classList.toggle('sb-open');
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('f-rdate').value=new Date().toISOString().split('T')[0];
+document.getElementById('ct-fam').checked=true;
+
+// Global comma formatting for amount fields
+const AMT_FIELDS=new Set(['accMed','accDeath','accDisable','annualLimit','lifetimeLimit','sv65','sv75','svcur','crit65','crit75','life65','life75','genAccMed','genAccDeath','genLuggage','genTripCancel','genTripDelay','genCash','genMedical','genHomeContents','genHomeFurniture','genHomePersonal','genHomeCash']);
+document.addEventListener('input',function(e){
+  const f=e.target.dataset?.f;
+  if(!f||!AMT_FIELDS.has(f))return;
+  const inp=e.target;
+  const v=inp.value;
+  const pfxM=v.match(/^([A-Z]+)\s*/);
+  const pfx=pfxM?pfxM[1]:'';
+  const hasSuffix=v.endsWith('/年');
+  const raw=v.replace(/^[A-Z]+\s*/,'').replace(/,/g,'').replace(/\/年$/,'').trim();
+  if(raw===''||raw==='N/A'||isNaN(parseFloat(raw)))return;
+  const n=parseFloat(raw);
+  const sel=inp.selectionStart;
+  const oldLen=inp.value.length;
+  inp.value=(pfx?pfx+' ':'')+n.toLocaleString('zh-HK')+(hasSuffix?'/年':'');
+  const newLen=inp.value.length;
+  try{inp.setSelectionRange(sel+(newLen-oldLen),sel+(newLen-oldLen));}catch(e){}
+});
+window.addEventListener('DOMContentLoaded',()=>{
+  if(gP()){document.getElementById('pin-screen').style.display='flex';}
+  else{showSetup();}
+});
+</script>
+<div id="print-area"></div>
+</html>
