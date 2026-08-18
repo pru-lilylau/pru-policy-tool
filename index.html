@@ -195,16 +195,18 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
 <!-- Setup -->
 <div id="setup-modal">
   <div style="background:#fff;border-radius:16px;padding:32px;width:460px;max-width:95vw;">
-    <div style="font-size:17px;font-weight:600;color:#003865;margin-bottom:6px;">初次設定</div>
-    <div style="font-size:13px;color:#6a5a48;margin-bottom:22px;line-height:1.6;">設定 GitHub Token 及 PIN 碼，只需做一次。</div>
+    <div id="setup-title" style="font-size:17px;font-weight:600;color:#003865;margin-bottom:6px;">初次設定</div>
+    <div id="setup-desc" style="font-size:13px;color:#6a5a48;margin-bottom:22px;line-height:1.6;">設定 GitHub Token 及 PIN 碼，只需做一次。</div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <input id="setup-tok" type="password" placeholder="ghp_xxxxxxxxxxxxxxxx" style="flex:1;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:13px;outline:none;">
       <button onclick="setupVerify()" style="padding:10px 16px;background:#003865;color:#fff;border:none;border-radius:8px;cursor:pointer;">確認</button>
     </div>
     <div id="setup-status" style="font-size:12px;color:#9a8a78;margin-bottom:18px;">貼入 token 後點「確認」</div>
-    <div style="font-size:13px;color:#6a5a48;margin-bottom:10px;">設定 4 位 PIN 碼</div>
-    <input id="setup-pin" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:120px;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:8px;outline:none;margin-bottom:20px;">
-    <button onclick="setupSave()" style="width:100%;padding:12px;background:#E31837;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;">完成設定，進入工具</button>
+    <div id="setup-pin-block">
+      <div style="font-size:13px;color:#6a5a48;margin-bottom:10px;">設定 4 位 PIN 碼</div>
+      <input id="setup-pin" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:120px;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:8px;outline:none;margin-bottom:20px;">
+    </div>
+    <button id="setup-save-btn" onclick="setupSave()" style="width:100%;padding:12px;background:#E31837;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;">完成設定，進入工具</button>
   </div>
 </div>
 
@@ -416,14 +418,16 @@ function toast(msg,type=''){clearTimeout(toastTimer);const el=document.getElemen
 
 // ─── PIN ───────────────────────────────────────────────────────────────────────
 let pinVal='';
-function pinKey(k){if(pinVal.length>=4)return;pinVal+=k;renderDots();if(pinVal.length===4){setTimeout(()=>{const s=gP();if(!s){pinVal='';renderDots();showSetup();return;}if(pinVal===s){enterApp();}else{document.getElementById('pin-err').textContent='PIN 碼錯誤，請重試';pinVal='';renderDots();setTimeout(()=>{document.getElementById('pin-err').textContent='';},2000);}},200);}}
+function pinKey(k){if(pinVal.length>=4)return;pinVal+=k;renderDots();if(pinVal.length===4){setTimeout(()=>{const s=gP();if(!s){pinVal='';renderDots();showSetup();return;}if(pinVal===s){if(!gT()){pinVal='';renderDots();promptTokenOnly();}else{enterApp();}}else{document.getElementById('pin-err').textContent='PIN 碼錯誤，請重試';pinVal='';renderDots();setTimeout(()=>{document.getElementById('pin-err').textContent='';},2000);}},200);}}
 function pinDel(){pinVal=pinVal.slice(0,-1);renderDots();}
 function renderDots(){for(let i=0;i<4;i++){const d=document.getElementById('pd'+i);d.textContent=i<pinVal.length?'●':'·';d.classList.toggle('filled',i<pinVal.length);}}
 
 // ─── SETUP ─────────────────────────────────────────────────────────────────────
-function showSetup(){document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.add('show');}
+let setupTokenOnly=false;
+function showSetup(){setupTokenOnly=false;document.getElementById('setup-title').textContent='初次設定';document.getElementById('setup-desc').textContent='設定 GitHub Token 及 PIN 碼，只需做一次。';document.getElementById('setup-pin-block').style.display='block';document.getElementById('setup-save-btn').textContent='完成設定，進入工具';document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.add('show');}
+function promptTokenOnly(){setupTokenOnly=true;document.getElementById('setup-title').textContent='需要重新輸入 Token';document.getElementById('setup-desc').textContent='偵測到 PIN 碼正確，但呢部裝置搵唔到 GitHub Token（可能瀏覽器資料被清）。請貼入 Token，PIN 碼會維持不變。';document.getElementById('setup-pin-block').style.display='none';document.getElementById('setup-save-btn').textContent='儲存 Token 並進入工具';document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.add('show');}
 function setupVerify(){const t=document.getElementById('setup-tok').value.trim();if(!t)return;try{localStorage.setItem('pru_gh_token',t);}catch(e){}const s=document.getElementById('setup-status');s.textContent='✓ Token 已儲存';s.style.color='#276B0C';}
-function setupSave(){const t=document.getElementById('setup-tok').value.trim()||gT(),p=document.getElementById('setup-pin').value;if(!t){alert('請輸入 GitHub Token');return;}if(p.length!==4||!/^\d+$/.test(p)){alert('請輸入4位數字PIN碼');return;}try{localStorage.setItem('pru_gh_token',t);localStorage.setItem('pru_pin',p);}catch(e){alert('儲存設定失敗');return;}document.getElementById('setup-modal').classList.remove('show');enterApp();}
+function setupSave(){const t=document.getElementById('setup-tok').value.trim()||gT();if(!t){alert('請輸入 GitHub Token');return;}let p=gP();if(!setupTokenOnly){p=document.getElementById('setup-pin').value;if(p.length!==4||!/^\d+$/.test(p)){alert('請輸入4位數字PIN碼');return;}}try{localStorage.setItem('pru_gh_token',t);localStorage.setItem('pru_pin',p);}catch(e){alert('儲存設定失敗');return;}document.getElementById('setup-modal').classList.remove('show');enterApp();}
 
 // ─── ENTER ─────────────────────────────────────────────────────────────────────
 function enterApp(){document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.remove('show');document.getElementById('main-app').style.display='block';loadGists();loadForm();}
