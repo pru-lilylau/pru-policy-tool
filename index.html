@@ -384,7 +384,8 @@ const IG_SVG=`<svg width="15" height="15" viewBox="0 0 32 32" fill="none" xmlns=
 
 // ─── STATE ─────────────────────────────────────────────────────────────────────
 let S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, Lily',advPhone:'6013 3108',advIG:'@pru_lilylau',remarks:'',clientType:'family',members:[newMember()]};
-let allGists=[],curGist=null,sbOpen=true,toastTimer=null;
+let allGists=[],curGist=null,sbOpen=true,toastTimer=null,dirty=false;
+const okDiscard=()=>!dirty||confirm('目前有未儲存的修改，確定要放棄？');
 
 function newPolicy(){return{type:'',planName:'',customName:'',policyNo:'',mode:'annual',currency:'HKD',premium:'',sumAssured:'',effectiveDate:'',paymentTerm:'',nextReview:'',ward:'',deductible:'',annualLimit:'',lifetimeLimit:'',accMed:'',accDeath:'',accDisable:'',sv65:'',sv75:'',svcur:'HKD',annTerm:'',annWithdrawal:'',accidentDeath:'',accidentMed:'',accidentDisable:'',critDis:'',critExtra:'',critTo:'',crit65:'',crit75:'',critSvc:'HKD',lifeTo:'',life65:'',life75:'',lifeSvc:'HKD',genAccMed:'',genAccDeath:'',genAccWork:'',genHospCash:'',genTravelType:'',genLuggage:'',genTripCancel:'',genTripDelay:'',genCash:'',genMedical:'',genHomePlan:'',genHomeContents:'',genHomeFurniture:'',genHomePersonal:'',genHomeCash:'',genHomeBuilding:'',genMaidPlan:'',genMaidPeriod:'',genMaidAgency:'',genMaidOutpatient:'',genMaidHospital:'',genMaidCI:'',genMaidCICheck:false};}
 function newMember(){return{name:'',dob:'',insuredDob:'',role:'',owner:'',insured:'',beneficiary:'',smoke:'NS',policies:[]};}
@@ -446,9 +447,9 @@ function renderSB(){const q=(document.getElementById('sb-q').value||'').toLowerC
 
 // ─── GITHUB GIST ───────────────────────────────────────────────────────────────
 async function loadGists(){const tok=gT();if(!tok)return;try{const r=await fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'token '+tok}});const d=await r.json();allGists=(Array.isArray(d)?d:[]).filter(g=>g.description?.startsWith('PRU_CLIENT:'));renderSB();}catch(e){}}
-async function loadGist(id){const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{Authorization:'token '+tok}});const g=await r.json();const f=Object.values(g.files)[0];let d;try{d=await decryptWithPin(gP(),f.content);}catch(e){d=JSON.parse(f.content);}curGist=id;S={...d,members:d.members?.length?d.members:[newMember()]};loadForm();renderSB();toast('已載入：'+d.fname,'ok');}catch(e){toast('載入失敗','err');}}
-async function saveGist(){const tok=gT();if(!tok){toast('未設定 Token','err');return;}const pin=gP();if(!pin){toast('未設定 PIN，無法加密儲存','err');return;}collectState();const nm=S.fname||'未命名客戶';let body;try{body=await encryptWithPin(pin,S);}catch(e){toast('加密失敗','err');return;}try{let method='POST',url='https://api.github.com/gists';if(curGist){method='PATCH';url=`https://api.github.com/gists/${curGist}`;}else{const ex=allGists.find(g=>g.description==='PRU_CLIENT:'+nm);if(ex){curGist=ex.id;method='PATCH';url=`https://api.github.com/gists/${ex.id}`;}}const r=await fetch(url,{method,headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({description:'PRU_CLIENT:'+nm,public:false,files:{'client.json':{content:body}}})});const g=await r.json();curGist=g.id;await loadGists();toast('已儲存：'+nm,'ok');}catch(e){toast('儲存失敗','err');}}
-async function delGist(id,nm){if(!confirm(`確定要刪除「${nm}」的記錄嗎？`))return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{method:'DELETE',headers:{Authorization:'token '+tok}});if(r.status===204){allGists=allGists.filter(g=>g.id!==id);if(curGist===id){curGist=null;newClient();}renderSB();toast('已刪除「'+nm+'」','ok');}else toast('刪除失敗','err');}catch(e){toast('刪除失敗','err');}}
+async function loadGist(id){if(curGist!==id&&!okDiscard())return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{Authorization:'token '+tok}});const g=await r.json();const f=Object.values(g.files)[0];let d;try{d=await decryptWithPin(gP(),f.content);}catch(e){d=JSON.parse(f.content);}curGist=id;S={...d,members:d.members?.length?d.members:[newMember()]};loadForm();dirty=false;renderSB();toast('已載入：'+d.fname,'ok');}catch(e){toast('載入失敗','err');}}
+async function saveGist(){const tok=gT();if(!tok){toast('未設定 Token','err');return;}const pin=gP();if(!pin){toast('未設定 PIN，無法加密儲存','err');return;}collectState();const nm=S.fname||'未命名客戶';let body;try{body=await encryptWithPin(pin,S);}catch(e){toast('加密失敗','err');return;}try{let method='POST',url='https://api.github.com/gists';if(curGist){method='PATCH';url=`https://api.github.com/gists/${curGist}`;}else{const ex=allGists.find(g=>g.description==='PRU_CLIENT:'+nm);if(ex){curGist=ex.id;method='PATCH';url=`https://api.github.com/gists/${ex.id}`;}}const r=await fetch(url,{method,headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({description:'PRU_CLIENT:'+nm,public:false,files:{'client.json':{content:body}}})});const g=await r.json();if(!r.ok||!g.id){toast('儲存失敗（GitHub '+r.status+'）：'+(g.message||''),'err');return;}curGist=g.id;dirty=false;await loadGists();toast('已儲存：'+nm,'ok');}catch(e){toast('儲存失敗，請檢查網絡','err');}}
+async function delGist(id,nm){if(!confirm(`確定要刪除「${nm}」的記錄嗎？`))return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{method:'DELETE',headers:{Authorization:'token '+tok}});if(r.status===204){allGists=allGists.filter(g=>g.id!==id);if(curGist===id){curGist=null;newClient(true);}renderSB();toast('已刪除「'+nm+'」','ok');}else toast('刪除失敗','err');}catch(e){toast('刪除失敗','err');}}
 
 // ─── CLIENT MODAL ──────────────────────────────────────────────────────────────
 function openCM(){document.getElementById('cm-q').value='';renderCM();document.getElementById('client-modal').style.display='flex';}
@@ -456,7 +457,7 @@ function closeCM(){document.getElementById('client-modal').style.display='none';
 function renderCM(){const q=(document.getElementById('cm-q').value||'').toLowerCase();const fl=allGists.filter(g=>g.description.toLowerCase().includes(q));const list=document.getElementById('cm-list');if(!fl.length){list.innerHTML='<div style="text-align:center;color:#9a8a78;font-size:13px;padding:24px;">未有客戶記錄</div>';return;}list.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:',''),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div style="padding:10px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='#EAF1F8'" onmouseout="this.style.background=''" onclick="loadGist('${g.id}');closeCM()"><div style="width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${nm.charAt(0)}</div><div><div style="font-size:14px;font-weight:500;">${nm}</div><div style="font-size:11px;color:#9a8a78;">上次更新：${dt}</div></div></div>`;}).join('');}
 
 // ─── FORM ──────────────────────────────────────────────────────────────────────
-function newClient(){curGist=null;S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, Lily',advPhone:'6013 3108',advIG:'@pru_lilylau',remarks:'',clientType:'family',members:[newMember()]};loadForm();renderSB();}
+function newClient(force){if(!force&&!okDiscard())return;curGist=null;S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, Lily',advPhone:'6013 3108',advIG:'@pru_lilylau',remarks:'',clientType:'family',members:[newMember()]};loadForm();renderSB();dirty=false;}
 function onFnameChange(){document.getElementById('ed-title').textContent=document.getElementById('f-fname').value||'新客戶';}
 function onCTChange(){S.clientType=document.querySelector('input[name="ct"]:checked')?.value||'family';updateAddBtn();collectState();renderMembers();}
 function updateAddBtn(){document.getElementById('add-mb-btn').textContent=`+ 新增${S.clientType==='single'?'保單持有人':'家庭成員'}`;}
@@ -499,7 +500,7 @@ function onHomeTypeChange(sel){const pc=sel.closest('.pc');const plan=sel.value;
 function onWardChange(sel){const pc=sel.closest('.pc');const pn=pc.querySelector('[data-f="planName"]')?.value;const md=MDATA[pn];if(!md)return;const al=pc.querySelector('[data-f="annualLimit"]');const ll=pc.querySelector('[data-f="lifetimeLimit"]');if(al&&md.annualLimits?.[sel.value])al.value=md.annualLimits[sel.value];if(ll&&md.lifetimeLimit)ll.value=md.lifetimeLimit;}
 function onMedPlanChange(sel){const pc=sel.closest('.pc');const md=MDATA[sel.value];if(!md)return;const ward=pc.querySelector('[data-f="ward"]');const ded=pc.querySelector('[data-f="deductible"]');const ll=pc.querySelector('[data-f="lifetimeLimit"]');const notes=pc.querySelector('.med-notes');if(ward){ward.innerHTML='<option value="">選擇病房</option>'+(md.wards||[]).map(w=>`<option>${w}</option>`).join('')+'<option value="自行輸入">自行輸入</option>';}if(ded){ded.innerHTML='<option value="">選擇自付額</option>'+(md.deductibles||[]).map(d=>`<option>${d}</option>`).join('')+'<option value="自行輸入">自行輸入</option>';}if(ll&&md.lifetimeLimit)ll.value=md.lifetimeLimit;if(notes)notes.textContent=md.notes?('💡 '+md.notes):'';}
 
-function renderMembers(){const wrap=document.getElementById('members-wrap');const isSingle=S.clientType==='single';wrap.innerHTML='';S.members.forEach((m,mi)=>{const col=AVBG[mi%6];const roles=isSingle?ROLES_SIN:ROLES_FAM;const div=document.createElement('div');div.className='mc';div.innerHTML=`
+function renderMembers(){const wrap=document.getElementById('members-wrap');const isSingle=S.clientType==='single';wrap.innerHTML='';S.members.forEach((m,mi)=>{const col=AVBG[mi%6];const roles=isSingle?ROLES_SIN:ROLES_FAM;const div=document.createElement('div');div.className='mc';div.dataset.mi=mi;div.innerHTML=`
 <div class="mc-hdr">
   <div class="mc-av" style="background:${col};">${isSingle?`<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="6.5" r="3.5" fill="rgba(255,255,255,.9)"/><path d="M2 18c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round"/></svg>`:(m.name?m.name.charAt(0):'家')}</div>
   <div style="flex:1;"><div style="color:#fff;font-size:15px;font-weight:600;">${isSingle?'個人客':(m.name||'新成員')}${!isSingle&&m.role?` <span style="font-size:11px;opacity:.65;font-weight:400;">${m.role.split('/')[0]}</span>`:''}</div></div>
@@ -541,7 +542,7 @@ function renderMembers(){const wrap=document.getElementById('members-wrap');cons
   <div class="pc-wrap" id="pc-wrap-${mi}">${m.policies.length?buildGroupedPolicies(m.policies,mi):'<div style="text-align:center;padding:18px 0 10px;color:#C8B890;font-size:12px;">尚未加入保單，按下方按鈕新增</div>'}</div>
   <button class="add-policy-btn" onclick="addPolicy(${mi})">+ 新增保單類別</button>
 </div>`;
-  wrap.appendChild(div);});}
+  wrap.appendChild(div);});wrap.querySelectorAll('.fund-rows-wrap').forEach(fw=>{const i=fw.querySelector('[data-f="fundPct"]');if(i)updateFundTotal(i);});}
 
 function buildGroupedPolicies(policies,mi){
   if(!policies||!policies.length)return'';
@@ -613,24 +614,24 @@ if(t==='medical'){const wards=md?.wards||['私家病房','半私家病房','普�
     <select class="fi" data-f="accidentCur" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.accidentCur||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select>
   </div>
   <div class="ff"><label class="fl">意外身故保額（100%）</label>
-    <input class="fi" data-f="accidentDeath" value="${sa>0?defDeath:(p.accidentDeath||'')}" placeholder="${defDeath||'1,000,000'}" oninput="this.value=ac(this.value)">
+    <input class="fi" data-f="accidentDeath" value="${p.accidentDeath||defDeath}" placeholder="${defDeath||'1,000,000'}" oninput="this.value=ac(this.value)">
   </div>
 </div>
 <div class="g2" style="margin-bottom:10px;align-items:start;">
   <div class="ff">
     <label class="fl">完全永久傷殘保額（100%）</label>
-    <input class="fi" data-f="accidentDisable" value="${sa>0?defDisable:(p.accidentDisable||'')}" placeholder="${defDisable||'1,000,000'}" oninput="this.value=ac(this.value)">
+    <input class="fi" data-f="accidentDisable" value="${p.accidentDisable||defDisable}" placeholder="${defDisable||'1,000,000'}" oninput="this.value=ac(this.value)">
     <div style="font-size:10px;color:${accCol};margin-top:4px;padding-left:2px;opacity:.85;">首18個月，每月支付1%，其後一筆過支付82%</div>
   </div>
   <div class="ff">
     <label class="fl">意外醫療保額（5%）<span style="color:#b0a090;font-weight:400;font-size:10px;">（PAA / PAP 適用）</span></label>
-    <input class="fi" data-f="accidentMed" value="${hasMed&&sa>0?defMed:(p.accidentMed||'')}" placeholder="${hasMed&&sa>0?(defMed||'50,000'):(defMed||'50,000')}" oninput="this.value=ac(this.value)">
+    <input class="fi" data-f="accidentMed" value="${p.accidentMed||(hasMed?defMed:'')}" placeholder="${hasMed&&sa>0?(defMed||'50,000'):(defMed||'50,000')}" oninput="this.value=ac(this.value)">
   </div>
 </div>
 <div class="g2" style="align-items:start;">
   <div class="ff">
     <label class="fl">完全暫時性傷殘（每週）（0.5%）<span style="color:#b0a090;font-weight:400;font-size:10px;">（PAP 適用）</span></label>
-    <input class="fi" data-f="accidentTempDisable" value="${hasTemp&&sa>0?defTemp:(p.accidentTempDisable||'')}" placeholder="${hasTemp&&sa>0?(defTemp||'500'):(defTemp||'500')}" oninput="this.value=ac(this.value)">
+    <input class="fi" data-f="accidentTempDisable" value="${p.accidentTempDisable||(hasTemp?defTemp:'')}" placeholder="${hasTemp&&sa>0?(defTemp||'500'):(defTemp||'500')}" oninput="this.value=ac(this.value)">
   </div>
   <div class="ff"></div>
 </div>
@@ -685,7 +686,7 @@ if(t==='medical'){const wards=md?.wards||['私家病房','半私家病房','普�
     const fundRows=holdings.map((h,hi)=>`<div class="fund-row" style="display:grid;grid-template-columns:1fr 90px 28px;gap:6px;align-items:center;margin-bottom:6px;"><select class="fi" data-f="fundName" style="font-size:12px;"><option value="">選擇基金</option>${FUND_LIST.map(f=>`<option value="${f.code} ${f.name}"${h.name===f.code+' '+f.name?' selected':''}>${f.code} ${f.name}</option>`).join('')}</select><div style="position:relative;"><input class="fi" data-f="fundPct" value="${h.pct||''}" placeholder="%" style="font-size:13px;padding-right:22px;" oninput="updateFundTotal(this)"><span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#9a8a78;pointer-events:none;">%</span></div><button type="button" onclick="removeFundRow(this)" style="width:26px;height:26px;border-radius:50%;background:#fee;border:1px solid #f5c0c9;color:#C0392B;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0;">×</button></div>`).join('');
     extra=`<div class="extra-box" style="background:#FEF7EC;border:1px solid #fac775"><span class="extra-title" style="color:#7A4500;border-color:#B07D2A;">基金配置</span><div class="fund-rows-wrap">${fundRows}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><button type="button" onclick="addFundRow(this)" style="font-size:12px;color:#7A4500;background:none;border:1px dashed #fac775;border-radius:6px;padding:4px 10px;cursor:pointer;">+ 新增基金</button><span class="fund-total" style="font-size:11px;color:#7A4500;font-weight:600;">合計: <span class="fund-total-val">0</span>%</span></div></div>`;
   }
-  else if(t==='critical'){const _critIsCustom=(p.planName||'').includes('自行輸入');const _critDis=_critIsCustom?'':p.critDis||'';const _critExtra=_critIsCustom?'':p.critExtra||'';extra=`<div class="extra-box" style="${exBg.critical}"><span class="extra-title" style="${etC.critical}">危疾保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">保障至</label><input class="fi" data-f="critTo" value="${p.critTo||''}" placeholder="例：100歲 / 終身"></div><div class="ff"><label class="fl">保障疾病數目</label><input class="fi" data-f="critDis" value="${_critDis}" placeholder="例：128種"></div></div><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">頭10年額外保額 (%)</label><input class="fi" data-f="critExtra" value="${_critExtra}" placeholder="例：100"></div><div></div></div><div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:end;"><div class="ff"><label class="fl">貨幣</label><select class="fi" data-f="critSvc" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.critSvc||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">65歲退保價值</div><input data-f="crit65" value="${p.crit65||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">75歲退保價值</div><input data-f="crit75" value="${p.crit75||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div></div></div>`;}
+  else if(t==='critical'){const _critIsCustom=(p.planName||'').includes('自行輸入');const _critDis=p.critDis||'';const _critExtra=p.critExtra||'';extra=`<div class="extra-box" style="${exBg.critical}"><span class="extra-title" style="${etC.critical}">危疾保障詳情</span><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">保障至</label><input class="fi" data-f="critTo" value="${p.critTo||''}" placeholder="例：100歲 / 終身"></div><div class="ff"><label class="fl">保障疾病數目</label><input class="fi" data-f="critDis" value="${_critDis}" placeholder="例：128種"></div></div><div class="g2" style="margin-bottom:10px;"><div class="ff"><label class="fl">頭10年額外保額 (%)</label><input class="fi" data-f="critExtra" value="${_critExtra}" placeholder="例：100"></div><div></div></div><div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:end;"><div class="ff"><label class="fl">貨幣</label><select class="fi" data-f="critSvc" style="font-size:13px;">${CURRENCIES.map(c=>`<option${(p.critSvc||'HKD')===c?' selected':''}>${c}</option>`).join('')}</select></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">65歲退保價值</div><input data-f="crit65" value="${p.crit65||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div><div style="background:#fff;border:1px solid ${sb};border-radius:6px;padding:7px 10px;text-align:center;"><div style="font-size:10px;color:${sc};margin-bottom:3px;font-weight:600;">75歲退保價值</div><input data-f="crit75" value="${p.crit75||''}" placeholder="000,000" style="border:none;background:transparent;font-size:13px;font-weight:600;text-align:center;width:100%;padding:0;font-family:monospace;color:${sc};outline:none;"></div></div></div>`;}
   else if(t==='general'){
     const pn=p.planName||'';
     const isAccident=pn.includes('倍安寶')||pn.includes('安健寶');
@@ -1239,7 +1240,7 @@ function onSumAssuredBlur(inp){
   const pc=inp.closest('.pc');
   if(!pc)return;
   const typeEl=pc.querySelector('[data-f="type"]');
-  if(typeEl&&typeEl.value==='accident'){collectState();renderMembers();}
+  if(typeEl&&typeEl.value==='accident'){const mi=+pc.closest('.mc').dataset.mi,pi=+pc.dataset.pi;const old=S.members[mi]?.policies[pi]?.sumAssured||'';collectState();const pol=S.members[mi]?.policies[pi];if(pol&&pol.sumAssured!==old){pol.accidentDeath='';pol.accidentDisable='';pol.accidentMed='';pol.accidentTempDisable='';}renderMembers();}
 }
 
 // Global comma formatting for amount fields
@@ -1261,6 +1262,9 @@ document.addEventListener('input',function(e){
   const newLen=inp.value.length;
   try{inp.setSelectionRange(sel+(newLen-oldLen),sel+(newLen-oldLen));}catch(e){}
 });
+document.getElementById('content').addEventListener('input',()=>{dirty=true;});
+document.getElementById('content').addEventListener('change',()=>{dirty=true;});
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('DOMContentLoaded',()=>{
   if(gP()){document.getElementById('pin-screen').style.display='flex';}
   else{showSetup();}
