@@ -772,10 +772,11 @@ function migrateSummary(m){
 function buildSumBox(m){
   const rows=m.projRows||[];
   const has=m.sumGoal||m.sumCost||m.sumGain||m.advice||rows.length;
-  const ta=(f,l,ph)=>`<div class="ff" style="margin-bottom:8px;"><label class="fl">${l}</label><textarea class="fi" data-f="${f}" rows="2" placeholder="${ph}" style="font-size:13px;">${escH(m[f])}</textarea></div>`;
-  return`<details class="sum-box"${has?' open':''} style="margin-bottom:14px;border:1px dashed #c8b89a;border-radius:8px;padding:8px 10px;background:#fffdf8;">
+  const ta=(f,l,ph)=>`<div class="ff" style="margin-bottom:8px;"><label class="fl">${l}</label><textarea class="fi" data-f="${f}" rows="4" placeholder="${ph}" style="font-size:13px;line-height:1.6;">${escH(m[f])}</textarea></div>`;
+  return`<details class="sum-box"${has?' open':''} ontoggle="if(this.open)autoPrefillSummary(this)" style="margin-bottom:14px;border:1px dashed #c8b89a;border-radius:8px;padding:8px 10px;background:#fffdf8;">
   <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#7a5a30;">方案總結（選填・會另外印一頁，總結呢位受保人現有保單嘅保障）</summary>
   <div style="margin-top:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:10.5px;color:#9a8a78;">打開時會按現有保單自動預填，可以再自行修改</span><button type="button" onclick="prefillSummary(this,true)" style="font-size:12px;color:#fff;background:#A08060;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;">按現有保單重新預填</button></div>
     ${ta('sumGoal','方案目標','例：萬一患上大病，應付醫療以外的必要支出，包括債務、家庭開支、失去工作的收入')}
     ${ta('sumCost','方案付出','例：每月約HKD1,800，25年供款，退休前供滿')}
     ${ta('sumGain','方案收穫','例：住院有醫療保障；確診危疾可獲一筆過HKD100萬；85歲時預期保額達HKD600萬')}
@@ -790,6 +791,72 @@ function buildSumBox(m){
     ${ta('advice','專業建議','例：避免成為家人負擔，重疾險是收入和債務保障。')}
   </div>
 </details>`;
+}
+// ─── 方案總結 prefill (written from the member's current policies) ─────────────
+const SUM_FIELDS=['sumGoal','sumCost','sumGain','advice'];
+function autoPrefillSummary(box){if(SUM_FIELDS.every(f=>!(box.querySelector(`[data-f="${f}"]`)?.value||'').trim()))prefillSummary(box,false);}
+function prefillSummary(el,ask){
+  const box=el.closest('.sum-box');const mc=box.closest('.mc');const mi=+mc.dataset.mi;
+  const filled=SUM_FIELDS.some(f=>(box.querySelector(`[data-f="${f}"]`)?.value||'').trim());
+  if(ask&&filled&&!confirm('會覆蓋目前已填嘅方案目標、方案付出、方案收穫同專業建議，確定？'))return;
+  collectState();const m=S.members[mi];if(!m)return;
+  const t=genSummaryText(m);if(!t)return;
+  SUM_FIELDS.forEach(f=>{const ta=box.querySelector(`[data-f="${f}"]`);if(ta)ta.value=t[f]||'';});
+}
+function genSummaryText(m){
+  const pols=(m.policies||[]).filter(p=>p.type);if(!pols.length)return null;
+  const num=v=>{const n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?null:n;};
+  const hk=(v,c)=>!c||c==='HKD'?v:(toHKD(v,c)||v);
+  const money=(v,c)=>`${c||'HKD'}${fmt(v)}`;
+  const yrs=(a,b)=>{const x=new Date(a),y=new Date(b);if(isNaN(x)||isNaN(y))return null;return y.getFullYear()-x.getFullYear()-((y.getMonth()<x.getMonth()||(y.getMonth()===x.getMonth()&&y.getDate()<x.getDate()))?1:0);};
+  const dob=m.insuredDob||m.dob;const age=dob?yrs(dob,new Date()):null;
+  const has=t=>pols.some(p=>p.type===t);const of=t=>pols.filter(p=>p.type===t);
+  const annualOf=p=>{const n=num(p.premium);return n==null?null:n*(p.mode==='monthly'?12:p.mode==='quarterly'?4:1);};
+  const termOf=p=>{const ia=dob&&p.effectiveDate?yrs(dob,p.effectiveDate):null;const t=num(String(p.paymentTerm||'').replace(/[^\d.]/g,''));if(t==null)return{term:null,endAge:null};if(/歲/.test(p.paymentTerm))return{term:ia!=null?t-ia:null,endAge:t};return{term:t,endAge:ia!=null?ia+t:null};};
+  const income=num(m.annualIncome),debt=num(m.debt)||0;
+  const critBase=of('critical').reduce((t,p)=>t+(hk(num(p.sumAssured)||0,p.currency)),0);
+  const need=income?income*5+debt:null;
+  // 方案目標
+  const goal=[];
+  if(has('critical'))goal.push('萬一遇上大病時，解決醫療費用之外的所有必要支出，包括債務、生病時的家庭支出及失去工作的收入。');
+  if(has('medical'))goal.push('住院及手術費用由醫療保險承擔，毋須動用個人積蓄。');
+  if(has('life'))goal.push('萬一不幸離世，為家人留下一筆資金，照顧家人生活及清還債務。');
+  if(has('accident'))goal.push('意外受傷或傷殘時，有額外賠償應付醫療開支及收入損失。');
+  if(has('savings'))goal.push('為退休及人生目標儲備資金，讓財富穩定增值。');
+  if(has('annuity'))goal.push('退休後有穩定現金流，安心享受退休生活。');
+  if(has('fund'))goal.push('透過長線投資，爭取資產增值。');
+  // 方案付出
+  const cost=[];
+  const tot=pols.reduce((t,p)=>{const a=annualOf(p);return t+(a==null?0:hk(a,p.currency));},0);
+  if(tot>0)cost.push(`每年總保費約HKD${fmt(tot)}（約每月HKD${fmt(tot/12)}）${income?`，約佔年收入${Math.round(tot/income*100)}%`:''}。`);
+  pols.filter(p=>['critical','life','savings','annuity','fund'].includes(p.type)).forEach(p=>{
+    const {term,endAge}=termOf(p);if(!term)return;const tn=TYPE_ZH[p.type];
+    if(['critical','life'].includes(p.type)&&term>=15)cost.push(`${tn}保障拉長${term}年供款，減輕每年的保費支出；保費固定${endAge?`，${endAge}歲前供滿`:''}${endAge&&endAge<=65?'，在退休前完成供款，為退休時減少負擔':''}。`);
+    else cost.push(`${tn}計劃供款${term}年${endAge?`，${endAge}歲供滿`:''}。`);
+  });
+  if(has('medical'))cost.push('醫療保險每年續保，保費會隨年齡調整。');
+  // 方案收穫
+  const gain=[];
+  of('critical').forEach(p=>{const sa=num(p.sumAssured);if(sa==null)return;const ex=num(String(p.critExtra||'').replace(/%/g,''));gain.push(`確診嚴重疾病可獲一筆過${money(sa,p.currency)}賠償${ex?`（頭10年${money(sa*(1+ex/100),p.currency)}）`:''}${p.critDis?`，保障${p.critDis}疾病`:''}。`);});
+  of('medical').forEach(p=>{const w=p.ward==='自行輸入'?p.wardCustom:p.ward;gain.push(`${w?`住院可入住${w}`:'住院及手術費用有保障'}${p.annualLimit?`，每年保額${p.annualLimit}`:''}。`);});
+  of('life').forEach(p=>{const sa=num(p.sumAssured);if(sa!=null)gain.push(`身故賠償${money(sa,p.currency)}${p.lifeTo?`，保障至${p.lifeTo}`:''}。`);});
+  of('accident').forEach(p=>{const d=num(p.accidentDeath);if(d!=null)gain.push(`意外身故賠償${money(d,p.accidentCur||p.currency)}。`);});
+  const SV={savings:['sv','svcur'],annuity:['sv','svcur'],critical:['crit','critSvc'],life:['life','lifeSvc']};
+  const svTot=a=>pols.reduce((t,p)=>{const k=SV[p.type];if(!k)return t;const v=num(p[k[0]+a]);return v==null?t:t+hk(v,p[k[1]]||p.currency);},0);
+  const sv65=svTot(65),sv85=svTot(85);
+  if(sv65||sv85)gain.push(`保障之餘亦有儲蓄價值：${[sv65?`65歲時預期退保價值約HKD${fmt(sv65)}`:'',sv85?`85歲時約HKD${fmt(sv85)}`:''].filter(Boolean).join('，')}（包括非保證金額）。`);
+  of('annuity').forEach(p=>{const w=num(p.annWithdrawal);if(w!=null)gain.push(`每年可提取年金${money(w,p.svcur||p.currency)}，作為退休收入。`);});
+  if(need!=null&&has('critical')&&critBase>=need)gain.push('危疾保額已達到「收入5年＋債務」的建議水平。');
+  // 專業建議
+  const adv=[];
+  if(!has('critical'))adv.push('建議優先加入危疾保障，避免大病時收入中斷，成為家人負擔。');
+  else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」的建議水平尚欠約HKD${fmt(need-critBase)}，建議逐步提升；重疾險是收入和債務的保障。`);
+  else adv.push('避免成為家人負擔，重疾險是收入和債務保障。');
+  if(!has('medical'))adv.push('建議加入醫療保障，住院開支毋須動用積蓄。');
+  if(!has('life')&&(debt>0||/父|母|夫|妻|配偶/.test(m.role||'')))adv.push('身邊有家人或債務需要照顧，建議考慮人壽保障。');
+  if(!has('savings')&&!has('annuity')&&age!=null&&age>=25)adv.push('保障穩固之後，可以開始為退休儲蓄，愈早開始，複息效果愈明顯。');
+  adv.push('建議每年檢視一次保障，並在結婚、置業、生育等人生階段及時調整。');
+  return{sumGoal:goal.join('\n'),sumCost:cost.join('\n'),sumGain:gain.join('\n'),advice:adv.join('\n')};
 }
 function addProjRow(btn,r){const wrap=btn.closest('.sum-box').querySelector('.proj-rows');wrap.insertAdjacentHTML('beforeend',projRowHTML(r));return wrap.lastElementChild;}
 // Sum each policy's 65/75/85 surrender value (in HKD) into the member's projection table
