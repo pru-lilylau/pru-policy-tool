@@ -788,7 +788,7 @@ function buildSumBox(m){
       <button type="button" onclick="fillProjAges(this)" style="font-size:12px;color:#7a5a30;background:none;border:1px dashed #c8b89a;border-radius:6px;padding:4px 10px;cursor:pointer;">帶入65/75/85歲退保價值（合計）</button>
     </div>
     <div style="font-size:10px;color:#9a8a78;margin:6px 0 10px;line-height:1.5;">💡 累計已付保費同回本比率會喺報告自動計（要填受保人出生日期，同各保單嘅保費、生效日期、繳費年期）</div>
-    ${ta('advice','專業建議','例：避免成為家人負擔，重疾險是收入和債務保障。')}
+    ${ta('advice','專業建議','例：避免成為家人負擔，危疾保險是收入和債務保障。')}
   </div>
 </details>`;
 }
@@ -850,8 +850,8 @@ function genSummaryText(m){
   // 專業建議
   const adv=[];
   if(!has('critical'))adv.push('建議優先加入危疾保障，避免大病時收入中斷，成為家人負擔。');
-  else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」的建議水平尚欠約HKD${fmt(need-critBase)}，建議逐步提升；重疾險是收入和債務的保障。`);
-  else adv.push('避免成為家人負擔，重疾險是收入和債務保障。');
+  else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」的建議水平尚欠約HKD${fmt(need-critBase)}，建議逐步提升；危疾保險是收入和債務的保障。`);
+  else adv.push('避免成為家人負擔，危疾保險是收入和債務保障。');
   if(!has('medical'))adv.push('建議加入醫療保障，住院開支毋須動用積蓄。');
   if(!has('life')&&(debt>0||/父|母|夫|妻|配偶/.test(m.role||'')))adv.push('身邊有家人或債務需要照顧，建議考慮人壽保障。');
   if(!has('savings')&&!has('annuity')&&age!=null&&age>=25)adv.push('保障穩固之後，可以開始為退休儲蓄，愈早開始，複息效果愈明顯。');
