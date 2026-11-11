@@ -178,6 +178,7 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
     <div class="pin-dots" id="pdots">
       <div class="pin-dot" id="pd0">·</div><div class="pin-dot" id="pd1">·</div>
       <div class="pin-dot" id="pd2">·</div><div class="pin-dot" id="pd3">·</div>
+      <div class="pin-dot" id="pd4">·</div><div class="pin-dot" id="pd5">·</div>
     </div>
     <div class="pin-grid">
       <button class="pin-key" onclick="pinKey('1')">1</button><button class="pin-key" onclick="pinKey('2')">2</button><button class="pin-key" onclick="pinKey('3')">3</button>
@@ -203,8 +204,8 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
     </div>
     <div id="setup-status" style="font-size:12px;color:#9a8a78;margin-bottom:18px;">貼入 token 後點「確認」</div>
     <div id="setup-pin-block">
-      <div style="font-size:13px;color:#6a5a48;margin-bottom:10px;">設定 4 位 PIN 碼</div>
-      <input id="setup-pin" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:120px;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:8px;outline:none;margin-bottom:20px;">
+      <div style="font-size:13px;color:#6a5a48;margin-bottom:10px;">設定 6 位 PIN 碼</div>
+      <input id="setup-pin" type="password" maxlength="6" inputmode="numeric" placeholder="••••••" style="width:160px;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:8px;outline:none;margin-bottom:20px;">
     </div>
     <button id="setup-save-btn" onclick="setupSave()" style="width:100%;padding:12px;background:#E31837;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;">完成設定，進入工具</button>
   </div>
@@ -392,6 +393,7 @@ const okDiscard=()=>!dirty||confirm('目前有未儲存的修改，確定要放�
 function newPolicy(){return{type:'',planName:'',customName:'',policyNo:'',mode:'annual',currency:'HKD',premium:'',sumAssured:'',effectiveDate:'',paymentTerm:'',nextReview:'',ward:'',deductible:'',annualLimit:'',lifetimeLimit:'',accMed:'',accDeath:'',accDisable:'',sv65:'',sv75:'',sv85:'',svcur:'HKD',annTerm:'',annWithdrawal:'',accidentDeath:'',accidentMed:'',accidentDisable:'',critDis:'',critExtra:'',critTo:'',crit65:'',crit75:'',crit85:'',critSvc:'HKD',lifeTo:'',life65:'',life75:'',life85:'',lifeSvc:'HKD',genAccMed:'',genAccDeath:'',genAccWork:'',genHospCash:'',genTravelType:'',genLuggage:'',genTripCancel:'',genTripDelay:'',genCash:'',genMedical:'',genHomePlan:'',genHomeContents:'',genHomeFurniture:'',genHomePersonal:'',genHomeCash:'',genHomeBuilding:'',genMaidPlan:'',genMaidPeriod:'',genMaidAgency:'',genMaidOutpatient:'',genMaidHospital:'',genMaidCI:'',genMaidCICheck:false,saCur:'',sa65:'',sa75:'',sa85:''};}
 function newMember(){return{name:'',dob:'',insuredDob:'',role:'',owner:'',insured:'',beneficiary:'',smoke:'NS',annualIncome:'',debt:'',advice:'',sumGoal:'',sumCost:'',policies:[]};}
 const gT=()=>{try{return localStorage.getItem('pru_gh_token')||'';}catch(e){return'';}};
+const gPOld=()=>{try{return localStorage.getItem('pru_pin_old')||'';}catch(e){return'';}};
 const gP=()=>{try{return localStorage.getItem('pru_pin')||'';}catch(e){return'';}};
 
 // ─── 資料加密（AES-GCM，PIN 經 PBKDF2 產生金鑰）───────────────────────────────
@@ -418,10 +420,12 @@ async function decryptWithPin(pin,payloadStr){
 
 // Client list entries: the gist description holds the client name and next review date, encrypted
 // with a key derived from the PIN, so GitHub only sees "PRU_CLIENT:e1:…"
-let _idxKey=null;
-function idxKey(){const pin=gP();if(!_idxKey||_idxKey.pin!==pin)_idxKey={pin,p:deriveKey(pin,new TextEncoder().encode('pru-index-v1'))};return _idxKey.p;}
+const _idxKeys={};
+function idxKey(pin){pin=pin||gP();if(!_idxKeys[pin])_idxKeys[pin]=deriveKey(pin,new TextEncoder().encode('pru-index-v1'));return _idxKeys[pin];}
 async function encDesc(meta){const key=await idxKey();const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(meta)));return'PRU_CLIENT:e1:'+toB64(iv)+'.'+toB64(ct);}
-async function decDesc(desc){if(!desc.startsWith('PRU_CLIENT:e1:'))return{n:desc.replace('PRU_CLIENT:',''),legacy:true};try{const[iv,ct]=desc.slice(14).split('.');const buf=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(iv)},await idxKey(),fromB64(ct));return JSON.parse(new TextDecoder().decode(buf));}catch(e){return{n:'（無法解密）'};}}
+async function decDesc(desc){if(!desc.startsWith('PRU_CLIENT:e1:'))return{n:desc.replace('PRU_CLIENT:',''),legacy:true};const[iv,ct]=desc.slice(14).split('.');const tryPin=async pin=>JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(iv)},await idxKey(pin),fromB64(ct))));try{return await tryPin(gP());}catch(e){}if(gPOld()){try{return{...(await tryPin(gPOld())),oldPin:true};}catch(e){}}return{n:'（無法解密）'};}
+// Client data: current PIN, then the previous PIN while a PIN change is being finished, then legacy plain text
+async function decryptAny(content){try{return{d:await decryptWithPin(gP(),content),how:'cur'};}catch(e){}if(gPOld()){try{return{d:await decryptWithPin(gPOld(),content),how:'old'};}catch(e){}}const d=JSON.parse(content);if(d&&d.v===1&&d.salt)throw new Error('wrong PIN');return{d,how:'plain'};}
 const gName=g=>(g._m&&g._m.n)||g.description.replace('PRU_CLIENT:','');
 // Days until next review (negative = overdue); null when not set
 function reviewDays(g){const r=g._m&&g._m.r;if(!r)return null;const d=new Date(r),t=new Date();t.setHours(0,0,0,0);if(isNaN(d))return null;return Math.round((d-t)/86400000);}
@@ -431,19 +435,20 @@ function toast(msg,type=''){clearTimeout(toastTimer);const el=document.getElemen
 
 // ─── PIN ───────────────────────────────────────────────────────────────────────
 let pinVal='';
-function pinKey(k){if(pinVal.length>=4)return;pinVal+=k;renderDots();if(pinVal.length===4){setTimeout(()=>{const s=gP();if(!s){pinVal='';renderDots();showSetup();return;}if(pinVal===s){if(!gT()){pinVal='';renderDots();promptTokenOnly();}else{enterApp();}}else{document.getElementById('pin-err').textContent='PIN 碼錯誤，請重試';pinVal='';renderDots();setTimeout(()=>{document.getElementById('pin-err').textContent='';},2000);}},200);}}
+const pinLen=()=>(gP()||'').length===4?4:6;
+function pinKey(k){if(pinVal.length>=pinLen())return;pinVal+=k;renderDots();if(pinVal.length===pinLen()){setTimeout(()=>{const s=gP();if(!s){pinVal='';renderDots();showSetup();return;}if(pinVal===s){if(!gT()){pinVal='';renderDots();promptTokenOnly();}else{enterApp();}}else{document.getElementById('pin-err').textContent='PIN 碼錯誤，請重試';pinVal='';renderDots();setTimeout(()=>{document.getElementById('pin-err').textContent='';},2000);}},200);}}
 function pinDel(){pinVal=pinVal.slice(0,-1);renderDots();}
-function renderDots(){for(let i=0;i<4;i++){const d=document.getElementById('pd'+i);d.textContent=i<pinVal.length?'●':'·';d.classList.toggle('filled',i<pinVal.length);}}
+function renderDots(){const L=pinLen();for(let i=0;i<6;i++){const d=document.getElementById('pd'+i);if(!d)continue;d.style.display=i<L?'':'none';d.textContent=i<pinVal.length?'●':'·';d.classList.toggle('filled',i<pinVal.length);}}
 
 // ─── SETUP ─────────────────────────────────────────────────────────────────────
 let setupTokenOnly=false;
 function showSetup(){setupTokenOnly=false;document.getElementById('setup-title').textContent='初次設定';document.getElementById('setup-desc').textContent='設定 GitHub Token 及 PIN 碼，只需做一次。';document.getElementById('setup-pin-block').style.display='block';document.getElementById('setup-save-btn').textContent='完成設定，進入工具';document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.add('show');}
 function promptTokenOnly(){setupTokenOnly=true;document.getElementById('setup-title').textContent='需要重新輸入 Token';document.getElementById('setup-desc').textContent='偵測到 PIN 碼正確，但呢部裝置搵唔到 GitHub Token（可能瀏覽器資料被清）。請貼入 Token，PIN 碼會維持不變。';document.getElementById('setup-pin-block').style.display='none';document.getElementById('setup-save-btn').textContent='儲存 Token 並進入工具';document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.add('show');}
 function setupVerify(){const t=document.getElementById('setup-tok').value.trim();if(!t)return;try{localStorage.setItem('pru_gh_token',t);}catch(e){}const s=document.getElementById('setup-status');s.textContent='✓ Token 已儲存';s.style.color='#276B0C';}
-function setupSave(){const t=document.getElementById('setup-tok').value.trim()||gT();if(!t){alert('請輸入 GitHub Token');return;}let p=gP();if(!setupTokenOnly){p=document.getElementById('setup-pin').value;if(p.length!==4||!/^\d+$/.test(p)){alert('請輸入4位數字PIN碼');return;}}try{localStorage.setItem('pru_gh_token',t);localStorage.setItem('pru_pin',p);}catch(e){alert('儲存設定失敗');return;}document.getElementById('setup-modal').classList.remove('show');enterApp();}
+function setupSave(){const t=document.getElementById('setup-tok').value.trim()||gT();if(!t){alert('請輸入 GitHub Token');return;}let p=gP();if(!setupTokenOnly){p=document.getElementById('setup-pin').value;if(!/^\d{6}$/.test(p)){alert('請輸入6位數字PIN碼');return;}}try{localStorage.setItem('pru_gh_token',t);localStorage.setItem('pru_pin',p);}catch(e){alert('儲存設定失敗');return;}document.getElementById('setup-modal').classList.remove('show');enterApp();}
 
 // ─── ENTER ─────────────────────────────────────────────────────────────────────
-function enterApp(){document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.remove('show');document.getElementById('main-app').style.display='block';loadGists();loadForm();}
+function enterApp(){document.getElementById('pin-screen').style.display='none';document.getElementById('setup-modal').classList.remove('show');document.getElementById('main-app').style.display='block';const ld=loadGists();loadForm();if(gP().length===4)ld.then(askNewPin);}
 function resetApp(){if(!confirm('確定要重置所有設定？'))return;try{localStorage.removeItem('pru_pin');localStorage.removeItem('pru_gh_token');}catch(e){}location.reload();}
 
 // ─── TRANSFER ──────────────────────────────────────────────────────────────────
@@ -475,12 +480,27 @@ async function loadGists(){const tok=gT();if(!tok)return;try{const r=await fetch
 // One-off upgrade of records saved by older versions: encrypt the name in the description, add the
 // review date, and re-encrypt any client data that was still stored as plain text
 let _upgrading=false;
-async function upgradeOldRecords(){if(_upgrading)return;const old=allGists.filter(g=>g._m&&g._m.legacy);if(!old.length)return;_upgrading=true;const tok=gT(),pin=gP();let n=0;
-  for(const g of old){try{const r=await fetch(`https://api.github.com/gists/${g.id}`,{headers:{Authorization:'token '+tok}});const full=await r.json();const fname=Object.keys(full.files||{})[0];if(!fname)continue;const content=full.files[fname].content;let d,plain=false;try{d=await decryptWithPin(pin,content);}catch(e){try{d=JSON.parse(content);plain=true;}catch(e2){continue;}if(d&&d.v===1&&d.salt)continue;}
-    const meta={n:d.fname||gName(g),r:d.nreview||''};const body={description:await encDesc(meta)};if(plain)body.files={[fname]:{content:await encryptWithPin(pin,d)}};
+async function upgradeOldRecords(){if(_upgrading)return;const old=allGists.filter(g=>g._m&&(g._m.legacy||g._m.oldPin));if(!old.length){finishPinChange();return;}_upgrading=true;const tok=gT(),pin=gP();let n=0;
+  for(const g of old){try{const r=await fetch(`https://api.github.com/gists/${g.id}`,{headers:{Authorization:'token '+tok}});const full=await r.json();const fname=Object.keys(full.files||{})[0];if(!fname)continue;let res;try{res=await decryptAny(full.files[fname].content);}catch(e){continue;}const d=res.d;
+    const meta={n:d.fname||gName(g),r:d.nreview||''};const body={description:await encDesc(meta)};if(res.how!=='cur')body.files={[fname]:{content:await encryptWithPin(pin,d)}};
     const u=await fetch(`https://api.github.com/gists/${g.id}`,{method:'PATCH',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify(body)});if(u.ok){g._m=meta;g.description=body.description;n++;}}catch(e){}}
-  _upgrading=false;if(n){renderSB();toast(`已加密更新 ${n} 個舊客戶記錄`,'ok');}}
-async function loadGist(id){if(curGist!==id&&!okDiscard())return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{Authorization:'token '+tok}});const g=await r.json();const f=Object.values(g.files)[0];let d;try{d=await decryptWithPin(gP(),f.content);}catch(e){d=JSON.parse(f.content);}curGist=id;S={...d,members:d.members?.length?d.members:[newMember()]};loadForm();dirty=false;renderSB();toast('已載入：'+d.fname,'ok');}catch(e){toast('載入失敗','err');}}
+  _upgrading=false;if(n){renderSB();toast(`已用新 PIN 加密更新 ${n} 個客戶記錄`,'ok');}finishPinChange();}
+// Forget the previous PIN once no record still needs it
+function finishPinChange(){if(!gPOld())return;if(allGists.some(g=>g._m&&(g._m.oldPin||g._m.legacy)))return;try{localStorage.removeItem('pru_pin_old');}catch(e){}}
+// ─── 4 位 → 6 位 PIN ────────────────────────────────────────────────────────────
+function askNewPin(){
+  const box=document.createElement('div');box.id='newpin-modal';
+  box.style.cssText='position:fixed;inset:0;background:rgba(40,25,10,.55);display:flex;align-items:center;justify-content:center;z-index:2000;padding:16px;';
+  box.innerHTML=`<div style="background:#fff;border-radius:14px;padding:22px 20px;max-width:340px;width:100%;font-family:inherit;"><div style="font-size:16px;font-weight:700;color:#3D2000;margin-bottom:8px;">請設定新嘅 6 位 PIN 碼</div><div style="font-size:12.5px;color:#6a5a48;line-height:1.6;margin-bottom:14px;">4 位 PIN 碼太易被估中。設定後，所有客戶記錄會自動用新 PIN 重新加密。</div><input id="np1" type="password" inputmode="numeric" maxlength="6" placeholder="新 PIN（6 位數字）" style="width:100%;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-size:16px;letter-spacing:4px;margin-bottom:8px;"><input id="np2" type="password" inputmode="numeric" maxlength="6" placeholder="再輸入一次" style="width:100%;padding:10px 12px;border:1.5px solid #d8cfc0;border-radius:8px;font-size:16px;letter-spacing:4px;"><div id="np-err" style="color:#E31837;font-size:12px;min-height:18px;margin-top:6px;"></div><button id="np-ok" style="width:100%;padding:11px;background:#003865;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">確定</button></div>`;
+  document.body.appendChild(box);
+  box.querySelector('#np-ok').onclick=()=>{const a=box.querySelector('#np1').value,b=box.querySelector('#np2').value,err=box.querySelector('#np-err');
+    if(!/^\d{6}$/.test(a)){err.textContent='請輸入 6 位數字';return;}if(a!==b){err.textContent='兩次輸入唔一樣';return;}if(/^(\d)\1{5}$/.test(a)||a==='123456'){err.textContent='呢個 PIN 太易估，請揀過另一個';return;}
+    try{localStorage.setItem('pru_pin_old',gP());localStorage.setItem('pru_pin',a);}catch(e){err.textContent='儲存失敗';return;}
+    box.remove();toast('PIN 已更新，正在重新加密客戶記錄…','ok');reencryptAll();};
+}
+// Mark every record as needing the new PIN, then reuse the upgrade routine
+async function reencryptAll(){while(_upgrading)await new Promise(ok=>setTimeout(ok,200));allGists.forEach(g=>{if(g._m&&!g._m.legacy)g._m.oldPin=true;});await upgradeOldRecords();}
+async function loadGist(id){if(curGist!==id&&!okDiscard())return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{Authorization:'token '+tok}});const g=await r.json();const f=Object.values(g.files)[0];const{d}=await decryptAny(f.content);curGist=id;S={...d,members:d.members?.length?d.members:[newMember()]};loadForm();dirty=false;renderSB();toast('已載入：'+d.fname,'ok');}catch(e){toast('載入失敗','err');}}
 async function saveGist(){const tok=gT();if(!tok){toast('未設定 Token','err');return;}const pin=gP();if(!pin){toast('未設定 PIN，無法加密儲存','err');return;}collectState();const nm=S.fname||'未命名客戶';let body;try{body=await encryptWithPin(pin,S);}catch(e){toast('加密失敗','err');return;}try{let method='POST',url='https://api.github.com/gists';if(curGist){method='PATCH';url=`https://api.github.com/gists/${curGist}`;}else{const ex=allGists.find(g=>gName(g)===nm);if(ex){curGist=ex.id;method='PATCH';url=`https://api.github.com/gists/${ex.id}`;}}const r=await fetch(url,{method,headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({description:await encDesc({n:nm,r:S.nreview||''}),public:false,files:{'client.json':{content:body}}})});const g=await r.json();if(!r.ok||!g.id){toast('儲存失敗（GitHub '+r.status+'）：'+(g.message||''),'err');return;}curGist=g.id;dirty=false;await loadGists();toast('已儲存：'+nm,'ok');}catch(e){toast('儲存失敗，請檢查網絡','err');}}
 async function delGist(id,nm){if(!confirm(`確定要刪除「${nm}」的記錄嗎？`))return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{method:'DELETE',headers:{Authorization:'token '+tok}});if(r.status===204){allGists=allGists.filter(g=>g.id!==id);if(curGist===id){curGist=null;newClient(true);}renderSB();toast('已刪除「'+nm+'」','ok');}else toast('刪除失敗','err');}catch(e){toast('刪除失敗','err');}}
 

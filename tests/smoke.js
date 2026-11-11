@@ -35,7 +35,7 @@ function fakeGitHub(){
     return route.abort();
   });
   await ctx.route(u=>!/^(file:|https:\/\/(api\.github\.com|cdnjs\.cloudflare\.com)|data:|about:)/.test(u.href),route=>{thirdParty.push(route.request().url());route.abort();});
-  await ctx.addInitScript(()=>{try{localStorage.setItem('pru_pin','1234');localStorage.setItem('pru_gh_token','test-token');}catch(e){}});
+  await ctx.addInitScript(()=>{try{localStorage.setItem('pru_pin','246810');localStorage.setItem('pru_gh_token','test-token');}catch(e){}});
 
   const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(e.message));
   await pg.goto(FILE);
@@ -82,6 +82,20 @@ function fakeGitHub(){
   const st2=await pg.evaluate(()=>fetch('https://api.github.com/gists').then(r=>r.json()));
   ok(st2.every(g=>g.description.startsWith('PRU_CLIENT:e1:'))&&!JSON.stringify(st2).includes('舊客戶'),'old plain-text record re-encrypted');
   ok((await pg.locator('#sb-list').innerText()).includes('已過檢視'),'overdue review flagged');
+
+  // ── 4-digit PIN → 6-digit PIN: everything re-encrypted, old PIN forgotten
+  await pg.evaluate(()=>{localStorage.setItem('pru_pin','1357');});
+  // re-save the records under the 4-digit PIN to simulate an existing user
+  await pg.evaluate(async()=>{const gs=await fetch('https://api.github.com/gists').then(r=>r.json());for(const g of gs){const full=await fetch('https://api.github.com/gists/'+g.id).then(r=>r.json());const fn=Object.keys(full.files)[0];const d=await decryptWithPin('246810',full.files[fn].content);await fetch('https://api.github.com/gists/'+g.id,{method:'PATCH',body:JSON.stringify({description:await encDesc({n:d.fname,r:d.nreview||''}),files:{[fn]:{content:await encryptWithPin('1357',d)}}})});}});
+  await pg.evaluate(()=>enterApp());await pg.waitForSelector('#newpin-modal');
+  await pg.fill('#np1','111111');await pg.fill('#np2','111111');await pg.click('#np-ok');
+  ok(/太易估/.test(await pg.locator('#np-err').innerText()),'weak new PIN rejected');
+  await pg.fill('#np1','802461');await pg.fill('#np2','802461');await pg.click('#np-ok');
+  await pg.waitForFunction(()=>!localStorage.getItem('pru_pin_old'),null,{timeout:10000}).catch(()=>{});
+  const reenc=await pg.evaluate(async()=>{const gs=await fetch('https://api.github.com/gists').then(r=>r.json());const out=[];for(const g of gs){const full=await fetch('https://api.github.com/gists/'+g.id).then(r=>r.json());const c=Object.values(full.files)[0].content;try{await decryptWithPin('802461',c);out.push(true);}catch(e){out.push(false);}}return out;});
+  ok(reenc.length===2&&reenc.every(Boolean),'all records re-encrypted with the new 6-digit PIN');
+  ok(await pg.evaluate(()=>localStorage.getItem('pru_pin')==='802461'&&!localStorage.getItem('pru_pin_old')),'old PIN forgotten after re-encryption');
+  ok((await pg.locator('#sb-list').innerText()).includes('測試家庭'),'client list readable with the new PIN');
 
   // ── transfer QR must not call a third-party service
   await pg.evaluate(()=>openTransfer());await pg.waitForTimeout(300);
