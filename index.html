@@ -223,7 +223,7 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
     </div>
     <div id="tr-ex">
       <p style="font-size:13px;color:#6a5a48;margin-bottom:16px;line-height:1.6;">喺新裝置選「匯入」，掃描 QR code 或貼上轉移碼。<br><span style="font-size:11px;color:#C0392B;">⚠️ 轉移碼包含 Token，請勿分享他人</span></p>
-      <div style="display:flex;justify-content:center;margin-bottom:14px;"><div style="border:1px solid #d8cfc0;border-radius:8px;padding:8px;background:#fdfaf5;"><img id="qr-img" src="" width="200" height="200" style="display:block;"></div></div>
+      <div style="display:flex;justify-content:center;margin-bottom:14px;"><div style="border:1px solid #d8cfc0;border-radius:8px;padding:8px;background:#fdfaf5;"><img id="qr-img" src="" width="200" height="200" style="display:block;" alt=""></div></div>
       <div style="font-size:11px;font-weight:600;color:#9a8a78;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">或複製轉移碼</div>
       <textarea id="ex-str" readonly style="width:100%;height:72px;padding:10px;border:1.5px solid #d8cfc0;border-radius:8px;font-family:monospace;font-size:11px;resize:none;background:#fdfaf5;"></textarea>
       <button onclick="copyExStr()" style="width:100%;margin-top:10px;padding:10px;background:#003865;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">複製轉移碼</button>
@@ -340,7 +340,9 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const RED='#E31837',NAVY='#003865',MILK='#A08060';
 const AVBG=['#003865','#E31837','#276B0C','#7A4500','#3A2F8F','#085041'];
-const FX={HKD:1,USD:7.78,RMB:1.07,CNY:1.07,GBP:9.85,EUR:8.30};
+// 參考匯率（兌港幣）— 全個工具只用呢一份；更新匯率改呢度就得，報告頁底會自動列出
+const FX={HKD:1,USD:7.78,RMB:1.07,CNY:1.07,GBP:9.85,EUR:8.30,AUD:4.95,SGD:5.75,JPY:0.052,CAD:5.65};
+const fxNote=()=>'參考匯率：'+CURRENCIES.filter(c=>c!=='HKD'&&FX[c]).map(c=>`${c} ${FX[c]}`).join('、');
 const FUND_LIST=[{code:'AAIX',name:'AB FCP I - 美元收益基金'},{code:'AHYX',name:'AB FCP I - 環球高收益基金'},{code:'AIGX',name:'安聯環球投資基金 - 安聯收益及增長基金'},{code:'BATX',name:'貝萊德全球基金 - 亞洲老虎債券基金'},{code:'BEEX',name:'貝萊德全球基金 - 歐洲股票入息基金'},{code:'BEMX',name:'貝萊德全球基金 - 新興市場債券基金'},{code:'BSSX',name:'霸菱環球高級抵押債券基金'},{code:'EABX',name:'瀚亞投資 - 亞洲債券基金'},{code:'EAHX',name:'瀚亞投資 - 亞洲高收益債券基金'},{code:'EIBX',name:'瀚亞投資 - 美國優質債券基金'},{code:'FGMX',name:'富達基金 - 環球多元收益基金'},{code:'FHYX',name:'富達基金 - 美元高收益基金'},{code:'IIFX',name:'晉達環球策略基金 - 環球入息導向基金'},{code:'JAPX',name:'摩根基金 - 亞太入息基金'},{code:'SGHX',name:'施羅德環球基金系列 - 環球高收益'},{code:'TFRX',name:'富蘭克林浮動息率基金'}];
 const toHKD=(a,c)=>{const r=FX[c]||0;return r?Math.round(a*r):null;};
 const fmt=n=>Math.round(n).toLocaleString('zh-HK');
@@ -414,6 +416,16 @@ async function decryptWithPin(pin,payloadStr){
   return JSON.parse(new TextDecoder().decode(buf));
 }
 
+// Client list entries: the gist description holds the client name and next review date, encrypted
+// with a key derived from the PIN, so GitHub only sees "PRU_CLIENT:e1:…"
+let _idxKey=null;
+function idxKey(){const pin=gP();if(!_idxKey||_idxKey.pin!==pin)_idxKey={pin,p:deriveKey(pin,new TextEncoder().encode('pru-index-v1'))};return _idxKey.p;}
+async function encDesc(meta){const key=await idxKey();const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(meta)));return'PRU_CLIENT:e1:'+toB64(iv)+'.'+toB64(ct);}
+async function decDesc(desc){if(!desc.startsWith('PRU_CLIENT:e1:'))return{n:desc.replace('PRU_CLIENT:',''),legacy:true};try{const[iv,ct]=desc.slice(14).split('.');const buf=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(iv)},await idxKey(),fromB64(ct));return JSON.parse(new TextDecoder().decode(buf));}catch(e){return{n:'（無法解密）'};}}
+const gName=g=>(g._m&&g._m.n)||g.description.replace('PRU_CLIENT:','');
+// Days until next review (negative = overdue); null when not set
+function reviewDays(g){const r=g._m&&g._m.r;if(!r)return null;const d=new Date(r),t=new Date();t.setHours(0,0,0,0);if(isNaN(d))return null;return Math.round((d-t)/86400000);}
+
 // ─── TOAST ─────────────────────────────────────────────────────────────────────
 function toast(msg,type=''){clearTimeout(toastTimer);const el=document.getElementById('toast');el.textContent=msg;el.className='show '+(type||'');toastTimer=setTimeout(()=>el.className='',2800);}
 
@@ -435,7 +447,10 @@ function enterApp(){document.getElementById('pin-screen').style.display='none';d
 function resetApp(){if(!confirm('確定要重置所有設定？'))return;try{localStorage.removeItem('pru_pin');localStorage.removeItem('pru_gh_token');}catch(e){}location.reload();}
 
 // ─── TRANSFER ──────────────────────────────────────────────────────────────────
-function openTransfer(){const t=gT(),p=gP(),es=t&&p?btoa(unescape(encodeURIComponent(JSON.stringify({t,p})))):'';document.getElementById('ex-str').value=es;if(es)document.getElementById('qr-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(es)}`;switchTab('ex');document.getElementById('transfer-modal').style.display='flex';}
+function openTransfer(){const t=gT(),p=gP(),es=t&&p?btoa(unescape(encodeURIComponent(JSON.stringify({t,p})))):'';document.getElementById('ex-str').value=es;const img=document.getElementById('qr-img');img.src='';img.closest('div').parentElement.style.display=es?'flex':'none';if(es)makeQR(es).then(u=>{img.src=u;}).catch(()=>{img.closest('div').parentElement.style.display='none';});switchTab('ex');document.getElementById('transfer-modal').style.display='flex';}
+// QR code is drawn in the browser — the transfer code (token + PIN) never leaves this device
+function loadQRLib(){if(window.qrcode)return Promise.resolve();return new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';sc.onload=ok;sc.onerror=no;document.head.appendChild(sc);});}
+async function makeQR(text){await loadQRLib();const q=qrcode(0,'M');q.addData(text);q.make();return q.createDataURL(4,8);}
 function closeTransfer(){document.getElementById('transfer-modal').style.display='none';}
 function switchTab(t){document.getElementById('tr-ex').style.display=t==='ex'?'block':'none';document.getElementById('tr-im').style.display=t==='im'?'block':'none';document.getElementById('tab-ex').classList.toggle('active',t==='ex');document.getElementById('tab-im').classList.toggle('active',t==='im');}
 function copyExStr(){navigator.clipboard?.writeText(document.getElementById('ex-str').value);toast('已複製轉移碼','ok');}
@@ -443,18 +458,36 @@ function doImport(){const s=document.getElementById('im-str').value.trim();docum
 
 // ─── SIDEBAR ───────────────────────────────────────────────────────────────────
 function toggleSb(){sbOpen=!sbOpen;document.getElementById('app').classList.toggle('sb-closed',!sbOpen);document.getElementById('sb-toggle').textContent=sbOpen?'‹':'›';}
-function renderSB(){const q=(document.getElementById('sb-q').value||'').toLowerCase();const fl=allGists.filter(g=>g.description.toLowerCase().includes(q));const list=document.getElementById('sb-list');const avl=document.getElementById('sb-av-list');if(!fl.length){list.innerHTML='<div style="padding:20px 16px;text-align:center;color:#9a8a78;font-size:12px;line-height:1.7;">尚未有客戶記錄</div>';avl.innerHTML='';return;}list.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:',''),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div class="sb-item${curGist===g.id?' active':''}" id="sbi-${g.id}"><div class="sb-av" style="background:${AVBG[i%6]};" onclick="loadGist('${g.id}')">${nm.charAt(0)}</div><div style="flex:1;min-width:0;" onclick="loadGist('${g.id}')"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nm}</div><div style="font-size:11px;color:#9a8a78;margin-top:1px;">${dt}</div></div><button onclick="delGist('${g.id}','${nm.replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;color:#9a8a78;display:flex;align-items:center;padding:2px 4px;border-radius:4px;"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>`;}).join('');avl.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:','');return`<div title="${nm}" onclick="loadGist('${g.id}');if(!sbOpen)toggleSb();" style="width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;border:${curGist===g.id?'2px solid #003865':'2px solid transparent'};">${nm.charAt(0)}</div>`;}).join('');}
+function renderSB(){const q=(document.getElementById('sb-q').value||'').toLowerCase();
+  let fl=allGists.filter(g=>gName(g).toLowerCase().includes(q));
+  const due=g=>{const d=reviewDays(g);return d!=null&&d<=30;};
+  fl=[...fl.filter(due).sort((a,b)=>reviewDays(a)-reviewDays(b)),...fl.filter(g=>!due(g))];
+  const nDue=fl.filter(due).length;
+  const list=document.getElementById('sb-list');const avl=document.getElementById('sb-av-list');
+  if(!fl.length){list.innerHTML='<div style="padding:20px 16px;text-align:center;color:#9a8a78;font-size:12px;line-height:1.7;">尚未有客戶記錄</div>';avl.innerHTML='';return;}
+  const badge=g=>{const d=reviewDays(g);if(d==null)return'';const dt=new Date(g._m.r);const lbl=`${dt.getMonth()+1}月${dt.getDate()}日`;if(d<0)return`<span style="font-size:10px;font-weight:700;color:#fff;background:#E31837;border-radius:8px;padding:1px 6px;">已過檢視 ${lbl}</span>`;if(d<=30)return`<span style="font-size:10px;font-weight:700;color:#7A4500;background:#FDEAC0;border-radius:8px;padding:1px 6px;">${d===0?'今日':d+'日後'}檢視</span>`;return`<span style="font-size:10px;color:#9a8a78;">檢視 ${dt.getFullYear()}年${lbl}</span>`;};
+  const esc=v=>String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  list.innerHTML=(nDue?`<div style="margin:2px 12px 8px;padding:6px 10px;border-radius:6px;background:#FEF7EC;border:1px solid #fac775;font-size:11.5px;color:#7A4500;font-weight:600;">🔔 ${nDue} 位客戶 30 日內要檢視保障</div>`:'')+fl.map((g,i)=>{const nm=gName(g),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div class="sb-item${curGist===g.id?' active':''}" id="sbi-${g.id}"><div class="sb-av" style="background:${AVBG[i%6]};" onclick="loadGist('${g.id}')">${esc(nm.charAt(0))}</div><div style="flex:1;min-width:0;" onclick="loadGist('${g.id}')"><div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(nm)}</div><div style="font-size:11px;color:#9a8a78;margin-top:1px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${dt}${badge(g)}</div></div><button onclick="delGist('${g.id}',this.dataset.n)" data-n="${esc(nm).replace(/"/g,'&quot;')}" style="background:none;border:none;cursor:pointer;color:#9a8a78;display:flex;align-items:center;padding:2px 4px;border-radius:4px;"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>`;}).join('');
+  avl.innerHTML=fl.map((g,i)=>{const nm=gName(g);return`<div title="${esc(nm).replace(/"/g,'&quot;')}" onclick="loadGist('${g.id}');if(!sbOpen)toggleSb();" style="position:relative;width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;border:${curGist===g.id?'2px solid #003865':'2px solid transparent'};">${esc(nm.charAt(0))}${due(g)?'<span style="position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#E31837;border:1.5px solid #fff;"></span>':''}</div>`;}).join('');}
 
 // ─── GITHUB GIST ───────────────────────────────────────────────────────────────
-async function loadGists(){const tok=gT();if(!tok)return;try{const r=await fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'token '+tok}});const d=await r.json();allGists=(Array.isArray(d)?d:[]).filter(g=>g.description?.startsWith('PRU_CLIENT:'));renderSB();}catch(e){}}
+async function loadGists(){const tok=gT();if(!tok)return;try{const r=await fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'token '+tok}});const d=await r.json();const list=(Array.isArray(d)?d:[]).filter(g=>g.description?.startsWith('PRU_CLIENT:'));for(const g of list)g._m=await decDesc(g.description);allGists=list;renderSB();upgradeOldRecords();}catch(e){}}
+// One-off upgrade of records saved by older versions: encrypt the name in the description, add the
+// review date, and re-encrypt any client data that was still stored as plain text
+let _upgrading=false;
+async function upgradeOldRecords(){if(_upgrading)return;const old=allGists.filter(g=>g._m&&g._m.legacy);if(!old.length)return;_upgrading=true;const tok=gT(),pin=gP();let n=0;
+  for(const g of old){try{const r=await fetch(`https://api.github.com/gists/${g.id}`,{headers:{Authorization:'token '+tok}});const full=await r.json();const fname=Object.keys(full.files||{})[0];if(!fname)continue;const content=full.files[fname].content;let d,plain=false;try{d=await decryptWithPin(pin,content);}catch(e){try{d=JSON.parse(content);plain=true;}catch(e2){continue;}if(d&&d.v===1&&d.salt)continue;}
+    const meta={n:d.fname||gName(g),r:d.nreview||''};const body={description:await encDesc(meta)};if(plain)body.files={[fname]:{content:await encryptWithPin(pin,d)}};
+    const u=await fetch(`https://api.github.com/gists/${g.id}`,{method:'PATCH',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify(body)});if(u.ok){g._m=meta;g.description=body.description;n++;}}catch(e){}}
+  _upgrading=false;if(n){renderSB();toast(`已加密更新 ${n} 個舊客戶記錄`,'ok');}}
 async function loadGist(id){if(curGist!==id&&!okDiscard())return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{Authorization:'token '+tok}});const g=await r.json();const f=Object.values(g.files)[0];let d;try{d=await decryptWithPin(gP(),f.content);}catch(e){d=JSON.parse(f.content);}curGist=id;S={...d,members:d.members?.length?d.members:[newMember()]};loadForm();dirty=false;renderSB();toast('已載入：'+d.fname,'ok');}catch(e){toast('載入失敗','err');}}
-async function saveGist(){const tok=gT();if(!tok){toast('未設定 Token','err');return;}const pin=gP();if(!pin){toast('未設定 PIN，無法加密儲存','err');return;}collectState();const nm=S.fname||'未命名客戶';let body;try{body=await encryptWithPin(pin,S);}catch(e){toast('加密失敗','err');return;}try{let method='POST',url='https://api.github.com/gists';if(curGist){method='PATCH';url=`https://api.github.com/gists/${curGist}`;}else{const ex=allGists.find(g=>g.description==='PRU_CLIENT:'+nm);if(ex){curGist=ex.id;method='PATCH';url=`https://api.github.com/gists/${ex.id}`;}}const r=await fetch(url,{method,headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({description:'PRU_CLIENT:'+nm,public:false,files:{'client.json':{content:body}}})});const g=await r.json();if(!r.ok||!g.id){toast('儲存失敗（GitHub '+r.status+'）：'+(g.message||''),'err');return;}curGist=g.id;dirty=false;await loadGists();toast('已儲存：'+nm,'ok');}catch(e){toast('儲存失敗，請檢查網絡','err');}}
+async function saveGist(){const tok=gT();if(!tok){toast('未設定 Token','err');return;}const pin=gP();if(!pin){toast('未設定 PIN，無法加密儲存','err');return;}collectState();const nm=S.fname||'未命名客戶';let body;try{body=await encryptWithPin(pin,S);}catch(e){toast('加密失敗','err');return;}try{let method='POST',url='https://api.github.com/gists';if(curGist){method='PATCH';url=`https://api.github.com/gists/${curGist}`;}else{const ex=allGists.find(g=>gName(g)===nm);if(ex){curGist=ex.id;method='PATCH';url=`https://api.github.com/gists/${ex.id}`;}}const r=await fetch(url,{method,headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({description:await encDesc({n:nm,r:S.nreview||''}),public:false,files:{'client.json':{content:body}}})});const g=await r.json();if(!r.ok||!g.id){toast('儲存失敗（GitHub '+r.status+'）：'+(g.message||''),'err');return;}curGist=g.id;dirty=false;await loadGists();toast('已儲存：'+nm,'ok');}catch(e){toast('儲存失敗，請檢查網絡','err');}}
 async function delGist(id,nm){if(!confirm(`確定要刪除「${nm}」的記錄嗎？`))return;const tok=gT();try{const r=await fetch(`https://api.github.com/gists/${id}`,{method:'DELETE',headers:{Authorization:'token '+tok}});if(r.status===204){allGists=allGists.filter(g=>g.id!==id);if(curGist===id){curGist=null;newClient(true);}renderSB();toast('已刪除「'+nm+'」','ok');}else toast('刪除失敗','err');}catch(e){toast('刪除失敗','err');}}
 
 // ─── CLIENT MODAL ──────────────────────────────────────────────────────────────
 function openCM(){document.getElementById('cm-q').value='';renderCM();document.getElementById('client-modal').style.display='flex';}
 function closeCM(){document.getElementById('client-modal').style.display='none';}
-function renderCM(){const q=(document.getElementById('cm-q').value||'').toLowerCase();const fl=allGists.filter(g=>g.description.toLowerCase().includes(q));const list=document.getElementById('cm-list');if(!fl.length){list.innerHTML='<div style="text-align:center;color:#9a8a78;font-size:13px;padding:24px;">未有客戶記錄</div>';return;}list.innerHTML=fl.map((g,i)=>{const nm=g.description.replace('PRU_CLIENT:',''),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div style="padding:10px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='#EAF1F8'" onmouseout="this.style.background=''" onclick="loadGist('${g.id}');closeCM()"><div style="width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${nm.charAt(0)}</div><div><div style="font-size:14px;font-weight:500;">${nm}</div><div style="font-size:11px;color:#9a8a78;">上次更新：${dt}</div></div></div>`;}).join('');}
+function renderCM(){const q=(document.getElementById('cm-q').value||'').toLowerCase();const fl=allGists.filter(g=>gName(g).toLowerCase().includes(q));const list=document.getElementById('cm-list');if(!fl.length){list.innerHTML='<div style="text-align:center;color:#9a8a78;font-size:13px;padding:24px;">未有客戶記錄</div>';return;}list.innerHTML=fl.map((g,i)=>{const nm=gName(g),dt=new Date(g.updated_at).toLocaleDateString('zh-HK');return`<div style="padding:10px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='#EAF1F8'" onmouseout="this.style.background=''" onclick="loadGist('${g.id}');closeCM()"><div style="width:32px;height:32px;border-radius:50%;background:${AVBG[i%6]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${nm.charAt(0)}</div><div><div style="font-size:14px;font-weight:500;">${nm}</div><div style="font-size:11px;color:#9a8a78;">上次更新：${dt}</div></div></div>`;}).join('');}
 
 // ─── FORM ──────────────────────────────────────────────────────────────────────
 function newClient(force){if(!force&&!okDiscard())return;curGist=null;S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, Lily',advPhone:'6013 3108',advIG:'@pru_lilylau',remarks:'',clientType:'family',members:[newMember()]};loadForm();renderSB();dirty=false;}
@@ -477,7 +510,22 @@ function addPolicy(mi){collectState();S.members[mi].policies.push(newPolicy());r
 function removePolicy(mi,pi){collectState();S.members[mi].policies.splice(pi,1);renderMembers();}
 function onTypeChange(sel,mi,pi){collectState();S.members[mi].policies[pi].type=sel.value;S.members[mi].policies[pi].planName=PRODS[sel.value]?.[0]||'';if(sel.value==='critical'){const pn=S.members[mi].policies[pi].planName;const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=d.dis;S.members[mi].policies[pi].critExtra=d.extra;}}renderMembers();}
 // ─── CRITICAL ILLNESS PLAN DEFAULTS ──────────────────────────────────────────
-const CRIT_DEFAULTS={'「誠保一生」危疾保 (CIM3, 1-65)':{dis:'127種',extra:'50'},'「誠保一生」危疾保 - 摯愛寶 (BCIM3, F 19-46)':{dis:'127種',extra:'50'},'危疾加護保 III (CIE3, 1-65)':{dis:'117種',extra:'50'},'危疾首護保 II (CIP2, 1-65)':{dis:'74種',extra:'50'}};
+// ─── 產品資料表 ─────────────────────────────────────────────────────────────────
+// 按計劃代號（計劃名括號入面嘅英文）記低產品特性。新產品／改資料只需改呢度：
+//   kind      儲蓄型（固定供款期同供款額）或 消費型（續保時調整保費）
+//   renew5    每5年調整保費          convertible  可以轉為免核保嘅儲蓄型危疾
+//   dis/extra 揀計劃時自動填入嘅保障疾病數目／頭10年額外保額(%)
+// 冇列出嘅危疾計劃：有填退保價值當儲蓄型，否則當消費型；冇列出嘅人壽計劃當儲蓄型。
+const PLAN_INFO={
+  CIM3:{kind:'儲蓄型',dis:'127種',extra:'50'}, BCIM3:{kind:'儲蓄型',dis:'127種',extra:'50'},
+  CIE3:{kind:'儲蓄型',dis:'117種',extra:'50'}, CIP2:{kind:'儲蓄型',dis:'74種',extra:'50'},
+  ECI:{kind:'消費型',renew5:true,convertible:true}, ECM:{kind:'消費型',renew5:true,convertible:true}, ECS:{kind:'消費型',renew5:true,convertible:true},
+  CIT2:{kind:'消費型'}, CPE:{kind:'消費型'}, C360:{kind:'消費型'}, CP:{kind:'消費型'}, CRC:{kind:'消費型'},
+  PLT:{kind:'消費型'},
+};
+const planCode=name=>((name||'').match(/\(([A-Z0-9]+)[,)]/)||[])[1]||'';
+const planInfo=p=>PLAN_INFO[planCode(p.planName)]||{};
+const CRIT_DEFAULTS=Object.fromEntries(PRODS.critical.filter(n=>PLAN_INFO[planCode(n)]?.dis).map(n=>[n,{dis:PLAN_INFO[planCode(n)].dis,extra:PLAN_INFO[planCode(n)].extra}]));
 function onCritPlanChange(sel,mi,pi){collectState();const pn=sel.value;S.members[mi].policies[pi].planName=pn;if(pn.includes('自行輸入')){S.members[mi].policies[pi].critDis='';S.members[mi].policies[pi].critExtra='';}else{const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=d.dis;S.members[mi].policies[pi].critExtra=d.extra;}else{S.members[mi].policies[pi].critDis='';S.members[mi].policies[pi].critExtra='';}}renderMembers();}
 function onAccidentPlanChange(sel,mi,pi){const pol=(S.members[mi]||{policies:[]}).policies[pi];if(pol){pol.planName=sel.value;pol.accidentDeath='';pol.accidentDisable='';pol.accidentMed='';pol.accidentTempDisable='';}collectState();S.members[mi].policies[pi].planName=sel.value;S.members[mi].policies[pi].accidentDeath='';S.members[mi].policies[pi].accidentDisable='';S.members[mi].policies[pi].accidentMed='';S.members[mi].policies[pi].accidentTempDisable='';renderMembers();}
 function onPlanChange(sel){const isC=sel.value.includes('自行輸入');const pc=sel.closest('.pc');const ex=pc.querySelector('[data-f="customName"]');if(isC&&!ex){const inp=document.createElement('input');inp.className='fi';inp.dataset.f='customName';inp.placeholder='自行輸入計劃名稱';inp.style.marginTop='6px';sel.parentNode.appendChild(inp);}else if(!isC&&ex)ex.remove();}
@@ -670,7 +718,6 @@ if(t==='medical'){const wards=md?.wards||['私家病房','半私家病房','普�
     }
     const annColor='#085041'; const annBorder='#5DCAA5';
     // HKD equivalent hint for withdrawal
-    const FX={'USD':7.78,'CNY':1.08,'GBP':9.85,'EUR':8.45,'AUD':4.95,'SGD':5.75,'JPY':0.052,'CAD':5.65};
     const fxRate=FX[svcur]||1;
     const wdNum=parseFloat((p.annWithdrawal||'').replace(/[^0-9.]/g,''))||0;
     const wdHKD=svcur!=='HKD'&&wdNum>0?`≈ HKD ${Math.round(wdNum*fxRate).toLocaleString('en-HK')}`:'';
@@ -825,14 +872,12 @@ function genSummaryText(m){
   const income=num(m.annualIncome),debt=num(m.debt)||0;
   const critBase=of('critical').reduce((t,p)=>t+(hk(num(p.sumAssured)||0,p.currency)),0);
   const need=income?income*5+debt:null;
-  // Plan styles: 儲蓄型 (fixed premium term, has cash value) vs 消費型 (renewable term)
-  const code=p=>((p.planName||'').match(/\(([A-Z0-9]+)[,)]/)||[])[1]||'';
-  const ECI_FAMILY=['ECI','ECM','ECS'];   // 「自主健康」系列: 每5年調整保費，可轉為儲蓄型危疾
-  const SAV_CI=['CIM3','BCIM3','CIE3','CIP2'];
-  const critSav=p=>SAV_CI.includes(code(p))||!!(p.crit65||p.crit75||p.crit85);
+  // Plan styles come from PLAN_INFO (產品資料表)
+  const critSav=p=>planInfo(p).kind?planInfo(p).kind==='儲蓄型':!!(p.crit65||p.crit75||p.crit85);
   const crits=of('critical'),cSav=crits.filter(critSav),cCon=crits.filter(p=>!critSav(p));
-  const hasEci=cCon.some(p=>ECI_FAMILY.includes(code(p)));
-  const lifeTerm=p=>code(p)==='PLT'||/定期/.test(p.planName||'');
+  const hasEci=cCon.some(p=>planInfo(p).renew5);
+  const canConvert=cCon.some(p=>planInfo(p).convertible);
+  const lifeTerm=p=>planInfo(p).kind==='消費型'||/定期/.test(p.planName||'');
   // 方案目標 — one short paragraph
   const goal=[];
   if(has('medical'))goal.push('醫療保險保障實報實銷嘅住院費用。');
@@ -857,7 +902,7 @@ function genSummaryText(m){
   if(has('medical'))cost.push('醫療保險係每年續保，保費會隨年齡調整。');
   // Lily建議
   const adv=[];
-  if(hasEci)adv.push('如有需要，消費型危疾可以考慮5年後轉為一份免核保嘅儲蓄型危疾。');
+  if(canConvert)adv.push('如有需要，消費型危疾可以考慮5年後轉為一份免核保嘅儲蓄型危疾。');
   if(!has('critical'))adv.push('建議先諗下危疾保障：危疾保險就係保障收入同債務，唔洗成為屋企人嘅負擔。');
   else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」嘅建議水平仲差大約HKD${fmt(need-critBase)}，可以考慮慢慢加上去。`);
   if(!has('medical'))adv.push('建議加埋醫療保障，住院費用實報實銷，唔使用自己啲積蓄。');
@@ -1206,7 +1251,8 @@ function buildPrintContent(mode,w){
     const mDistRows=mPieData.map(d=>{const pct=mGrandHKD>0?Math.round(d.val/mGrandHKD*100):0;return`<tr><td style="padding:3px 6px 3px 0;"><span style="display:inline-block;background:${d.color};color:#fff;font-size:11px;font-weight:600;padding:1.5px 6px;border-radius:3px;min-width:44px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${TYPE_ZH[d.type]||d.type}</span></td><td style="padding:3px 5px;text-align:right;font-size:11px;font-weight:600;color:#1a1a2e;">${fmt(d.val)}</td><td style="padding:3px 0;text-align:right;font-size:11px;color:#52606d;">${pct}%</td></tr>`;}).join('');
 
     // Per-member SA summary
-    const mCritSA={},mLifeSA={};
+    const mCritSA={},mLifeSA={},mCritBase={};
+    (m.policies||[]).forEach(p=>{if(p.type!=='critical')return;const b=parseFloat((p.sumAssured||'0').replace(/,/g,''));if(!isNaN(b)&&b>0){const c=p.currency||'HKD';mCritBase[c]=(mCritBase[c]||0)+b;}});
     (m.policies||[]).forEach(p=>{const eff=effSA(p);if(eff<=0)return;if(p.type==='critical'){const c=p.currency||'HKD';mCritSA[c]=(mCritSA[c]||0)+eff;mLifeSA[c]=(mLifeSA[c]||0)+eff;}if(p.type==='life'){const c=p.currency||'HKD';mLifeSA[c]=(mLifeSA[c]||0)+eff;}});
     let mSv65=0,mSv75=0,mSv85=0,mHas65=false,mHas75=false,mHas85=false;
     (m.policies||[]).forEach(p=>{if(p.type==='savings'||p.type==='annuity'){if(p.sv65){mSv65+=toH(p.sv65,p.svcur||'HKD');mHas65=true;}if(p.sv75){mSv75+=toH(p.sv75,p.svcur||'HKD');mHas75=true;}if(p.sv85){mSv85+=toH(p.sv85,p.svcur||'HKD');mHas85=true;}}if(p.type==='critical'){const c=p.critSvc||p.currency||'HKD';if(p.crit65){mSv65+=toH(p.crit65,c);mHas65=true;}if(p.crit75){mSv75+=toH(p.crit75,c);mHas75=true;}if(p.crit85){mSv85+=toH(p.crit85,c);mHas85=true;}}if(p.type==='life'){const c=p.lifeSvc||p.currency||'HKD';if(p.life65){mSv65+=toH(p.life65,c);mHas65=true;}if(p.life75){mSv75+=toH(p.life75,c);mHas75=true;}if(p.life85){mSv85+=toH(p.life85,c);mHas85=true;}}});
@@ -1225,7 +1271,7 @@ function buildPrintContent(mode,w){
        mGapHTML=`<div style="margin-top:8px;background:${bg};border:0.5px solid ${bd};border-radius:4px;padding:7px 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="font-size:11px;font-weight:700;color:${c};margin-bottom:4px;">危疾保障缺口</div><div style="display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;"><span style="color:#7a6a5a;">建議保額<br><span style="font-size:9px;opacity:.8;">收入5年＋債務</span></span><span style="font-weight:700;">HKD ${fmt(need)}</span></div><div style="display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;"><span style="color:#7a6a5a;">現有危疾基本保額</span><span style="font-weight:700;">HKD ${fmt(have)}</span></div><div style="text-align:center;font-size:11.5px;font-weight:700;color:${c};margin-top:4px;padding-top:4px;border-top:0.5px dashed ${bd};">${ok?'✓ 已達標':`尚欠 HKD ${fmt(diff)}`}</div></div>`;
      }}
     const insuredDisplay=m.insured||m.owner||'（未填）';
-    const mbHdr=`<div class="mb-hdr" style="background:${col};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${thumbSVG}</div><div style="flex:1;"><div style="color:#fff;font-size:13px;font-weight:700;">受保人: ${insuredDisplay} <span style="font-size:11px;font-weight:400;opacity:.75;">${rel}${insuredAge?` · ${insuredAge}`:''}</span></div><div style="color:rgba(255,255,255,.65);font-size:11px;margin-top:2px;">投保人: ${m.owner||'—'} | 受益人: ${m.beneficiary||'—'} | ${m.smoke==='NS'?'非吸煙':'吸煙'}</div></div>${mTotStr}</div>`;
+    const mbHdr=`<div class="mb-hdr" style="background:${col};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${thumbSVG}</div><div style="flex:1;"><div style="color:#fff;font-size:13px;font-weight:700;">受保人: ${insuredDisplay} <span style="font-size:11px;font-weight:400;opacity:.75;">${rel}${insuredAge?` · ${insuredAge}`:''}</span></div><div style="color:rgba(255,255,255,.65);font-size:11px;margin-top:2px;">${[m.owner?`投保人: ${m.owner}`:'',m.beneficiary?`受益人: ${m.beneficiary}`:'',m.smoke==='NS'?'非吸煙':'吸煙'].filter(Boolean).join(' | ')}</div></div>${mTotStr}</div>`;
 
     const hdrHTML=`<div class="pg-hdr-adv">
   <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.25);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;">${adv?adv.charAt(0).toUpperCase():'?'}</div>
@@ -1243,7 +1289,7 @@ function buildPrintContent(mode,w){
 </div>
 <div class="pg-hdr-red"></div>`;
     const isLast=mi===members.length-1;
-    const footerHTML=isLast?`<div style="background:${NAVY};padding:9px 14px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.9;text-align:center;margin-top:8px;border-radius:0 0 4px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">本摘要僅供參考，詳細條款請參閱原保單文件。如有疑問，請聯絡您的顧問。<br>* 退保價值及按年歲保額為預期數字，包括非保證金額，實際金額或會較高或較低，以保險公司發出之利益說明文件為準。<br><span style="font-size:11px;opacity:.7;">外幣換算以參考匯率計算，實際匯率以交易當日為準。Prudential Hong Kong Limited 保誠保險有限公司 | ${today}</span></div>`:'';
+    const footerHTML=isLast?`<div style="background:${NAVY};padding:9px 14px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.9;text-align:center;margin-top:8px;border-radius:0 0 4px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">本摘要僅供參考，詳細條款請參閱原保單文件。如有疑問，請聯絡您的顧問。<br>* 退保價值及按年歲保額為預期數字，包括非保證金額，實際金額或會較高或較低，以保險公司發出之利益說明文件為準。<br><span style="font-size:11px;opacity:.7;">外幣換算以參考匯率計算（${fxNote()}），實際匯率以交易當日為準。Prudential Hong Kong Limited 保誠保險有限公司 | ${today}</span></div>`:'';
 
     return `<div class="pg-page">
 ${hdrHTML}
@@ -1260,7 +1306,7 @@ ${hdrHTML}
       <table style="width:100%;border-collapse:collapse;margin-bottom:9px;">${mDistRows}<tr style="border-top:1.5px solid #dde2ea;"><td style="padding:4px 6px 2px 0;font-size:11px;font-weight:700;color:#1a1a2e;">平均每月</td><td style="padding:4px 5px 2px;text-align:right;font-size:11px;font-weight:700;color:#1a1a2e;">${mGrandHKD>0?fmt(mGrandHKD/12):'—'}</td><td style="padding:4px 0 2px;text-align:right;font-size:11px;font-weight:700;color:#1a1a2e;">100%</td></tr></table>
       <div style="height:0.5px;background:#dde2ea;margin:8px 0;"></div>
       <div class="sec-lbl">保障總覽</div>
-      ${(()=>{const rows=[...mMedRows,['危疾保額',fmtSA(mCritSA)],['人壽保額',fmtSA(mLifeSA)],['65歲退保*',mHas65?`HKD ${fmt(mSv65)}`:'—'],['75歲退保*',mHas75?`HKD ${fmt(mSv75)}`:'—'],...(mHas85?[['85歲退保*',`HKD ${fmt(mSv85)}`]]:[])].filter(([k,v])=>v&&v!=='—');return rows.length?rows:[['—','']];})().map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px dashed #c8c0b4;font-size:11px;"><span style="color:#7a6a5a;">${k}</span><span style="font-weight:700;color:#1a1a2e;">${v}</span></div>`).join('')}
+      ${(()=>{const rows=[...mMedRows,['危疾保額',fmtSA(mCritBase)],...(fmtSA(mCritSA)!==fmtSA(mCritBase)?[['危疾保額（頭10年）',fmtSA(mCritSA)]]:[]),['人壽保額',fmtSA(mLifeSA)],['65歲退保*',mHas65?`HKD ${fmt(mSv65)}`:'—'],['75歲退保*',mHas75?`HKD ${fmt(mSv75)}`:'—'],...(mHas85?[['85歲退保*',`HKD ${fmt(mSv85)}`]]:[])].filter(([k,v])=>v&&v!=='—');return rows.length?rows:[['—','']];})().map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px dashed #c8c0b4;font-size:11px;"><span style="color:#7a6a5a;">${k}</span><span style="font-weight:700;color:#1a1a2e;">${v}</span></div>`).join('')}
       ${mGapHTML}
       <div style="height:0.5px;background:#dde2ea;margin:9px 0 4px;"></div>
       ${buildWealthPyramid(m.policies)}
@@ -1369,7 +1415,6 @@ function calcAnnuityHKD(el){
   if(!hintEl)return;
   const cur=pc.querySelector('[data-f="svcur"]')?.value||'USD';
   const wdVal=pc.querySelector('[data-f="annWithdrawal"]')?.value||'';
-  const FX={'USD':7.78,'CNY':1.08,'GBP':9.85,'EUR':8.45,'AUD':4.95,'SGD':5.75,'JPY':0.052,'CAD':5.65};
   const rate=FX[cur]||1;
   const num=parseFloat(wdVal.replace(/[^0-9.]/g,''))||0;
   hintEl.textContent=(cur!=='HKD'&&num>0)?`≈ HKD ${Math.round(num*rate).toLocaleString('en-HK')}`:'';
