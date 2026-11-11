@@ -464,7 +464,7 @@ function updateAddBtn(){document.getElementById('add-mb-btn').textContent=`+ 新
 function loadForm(){document.getElementById('f-fname').value=S.fname||'';document.getElementById('f-rdate').value=S.rdate||new Date().toISOString().split('T')[0];document.getElementById('f-nreview').value=S.nreview||'';document.getElementById('f-adv').value=S.adv||'Lau Lai Lai, Lily';document.getElementById('f-advPhone').value=S.advPhone||'6013 3108';document.getElementById('f-advIG').value=S.advIG||'@pru_lilylau';document.getElementById('f-remarks').value=S.remarks||'';document.getElementById('ct-fam').checked=S.clientType!=='single';document.getElementById('ct-sin').checked=S.clientType==='single';document.getElementById('ed-title').textContent=S.fname||'新客戶';updateAddBtn();renderMembers();}
 function collectState(){S.fname=document.getElementById('f-fname').value;S.rdate=document.getElementById('f-rdate').value;S.adv=document.getElementById('f-adv').value;S.advPhone=document.getElementById('f-advPhone').value;S.advIG=document.getElementById('f-advIG').value;S.remarks=document.getElementById('f-remarks').value;S.nreview=document.getElementById('f-nreview').value;S.clientType=document.querySelector('input[name="ct"]:checked')?.value||'family';S.members=collectMembers();}
 function collectMembers(){return Array.from(document.querySelectorAll('.mc')).map(mel=>{const g=f=>mel.querySelector(`[data-f="${f}"]`)?.value||'';return{name:g('name'),dob:g('dob'),insuredDob:g('insuredDob'),role:g('role'),owner:g('owner'),insured:g('insured'),beneficiary:g('beneficiary'),smoke:g('smoke'),policies:collectPolicies(mel)};});}
-function collectPolicies(mel){return Array.from(mel.querySelectorAll('.pc')).map(pel=>{const g=f=>pel.querySelector(`[data-f="${f}"]`)?.value||'';
+function collectPolicies(mel){return Array.from(mel.querySelectorAll('.pc')).sort((a,b)=>(+a.dataset.pi)-(+b.dataset.pi)).map(pel=>{const g=f=>pel.querySelector(`[data-f="${f}"]`)?.value||'';
   // collect fund holdings
   const fundHoldings=[];pel.querySelectorAll('.fund-row').forEach(row=>{const fn=row.querySelector('[data-f="fundName"]')?.value||'';const fp=row.querySelector('[data-f="fundPct"]')?.value||'';if(fn)fundHoldings.push({name:fn,pct:fp});});
   return{type:g('type'),planName:g('planName'),customName:g('customName'),policyNo:g('policyNo'),mode:g('mode'),currency:g('currency'),premium:g('premium'),sumAssured:g('sumAssured'),effectiveDate:g('effectiveDate'),paymentTerm:g('paymentTerm'),nextReview:g('nextReview'),ward:g('ward'),wardCustom:g('wardCustom'),deductible:g('deductible'),deductibleCustom:g('deductibleCustom'),annualLimit:g('annualLimit'),lifetimeLimit:g('lifetimeLimit'),accMed:g('accMed'),accDeath:g('accDeath'),accDisable:g('accDisable'),sv65:g('sv65'),sv75:g('sv75'),sv85:g('sv85'),svcur:g('svcur')||'HKD',annTerm:g('annTerm'),annWithdrawal:g('annWithdrawal'),accidentCur:g('accidentCur')||'HKD',accidentDeath:g('accidentDeath'),accidentMed:g('accidentMed'),accidentDisable:g('accidentDisable'),accidentTempDisable:g('accidentTempDisable'),critDis:g('critDis'),critExtra:g('critExtra'),critTo:g('critTo'),crit65:g('crit65'),crit75:g('crit75'),crit85:g('crit85'),critSvc:g('critSvc')||'HKD',lifeTo:g('lifeTo'),life65:g('life65'),life75:g('life75'),life85:g('life85'),lifeSvc:g('lifeSvc')||'HKD',genAccMed:g('genAccMed'),genAccDeath:g('genAccDeath'),genAccWork:g('genAccWork'),genHospCash:g('genHospCash'),genTravelType:g('genTravelType'),genLuggage:g('genLuggage'),genTripCancel:g('genTripCancel'),genTripDelay:g('genTripDelay'),genCash:g('genCash'),genMedical:g('genMedical'),genHomePlan:g('genHomePlan'),genHomeContents:g('genHomeContents'),genHomeFurniture:g('genHomeFurniture'),genHomePersonal:g('genHomePersonal'),genHomeCash:g('genHomeCash'),genHomeBuilding:g('genHomeBuilding'),genMaidPlan:g('genMaidPlan'),genMaidPeriod:g('genMaidPeriod'),genMaidAgency:g('genMaidAgency'),genMaidOutpatient:g('genMaidOutpatient'),genMaidHospital:g('genMaidHospital'),genMaidCI:g('genMaidCI'),genMaidCICheck:pel.querySelector('[data-f="genMaidCICheck"]')?.checked||false,fundHoldings};})}
@@ -473,7 +473,7 @@ function collectPolicies(mel){return Array.from(mel.querySelectorAll('.pc')).map
 function checkInsuredDob(inp){const mc=inp.closest('.mc');if(!mc)return;const owner=mc.querySelector('[data-f="owner"]')?.value||'';const insured=mc.querySelector('[data-f="insured"]')?.value||'';const miMatch=mc.id?.match(/\d+/);const rows=mc.querySelectorAll('[id^="insuredDobRow_"]');rows.forEach(row=>{row.style.display=(insured&&owner&&insured!==owner)?'':'none';});}
 function addMember(){collectState();S.members.push(newMember());renderMembers();}
 function removeMember(i){collectState();S.members.splice(i,1);if(!S.members.length)S.members=[newMember()];renderMembers();}
-function addPolicy(mi){collectState();S.members[mi].policies.push(newPolicy());renderMembers();}
+function addPolicy(mi){collectState();S.members[mi].policies.push(newPolicy());renderMembers();document.querySelector(`.mc[data-mi="${mi}"] .type-group[data-type=""]`)?.scrollIntoView({behavior:'smooth',block:'center'});}
 function removePolicy(mi,pi){collectState();S.members[mi].policies.splice(pi,1);renderMembers();}
 function onTypeChange(sel,mi,pi){collectState();S.members[mi].policies[pi].type=sel.value;S.members[mi].policies[pi].planName=PRODS[sel.value]?.[0]||'';if(sel.value==='critical'){const pn=S.members[mi].policies[pi].planName;const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=d.dis;S.members[mi].policies[pi].critExtra=d.extra;}}renderMembers();}
 // ─── CRITICAL ILLNESS PLAN DEFAULTS ──────────────────────────────────────────
@@ -544,16 +544,25 @@ function renderMembers(){const wrap=document.getElementById('members-wrap');cons
 </div>`;
   wrap.appendChild(div);});wrap.querySelectorAll('.fund-rows-wrap').forEach(fw=>{const i=fw.querySelector('[data-f="fundPct"]');if(i)updateFundTotal(i);});}
 
+// Newest first: policies without an effective date (just added) on top, then latest effective date; ties → most recently added first
+function newestFirst(policies){
+  return (policies||[]).map((p,pi)=>({p,pi})).sort((a,b)=>{
+    const da=a.p.effectiveDate||'',db=b.p.effectiveDate||'';
+    if(!da!==!db)return da?1:-1;
+    if(da!==db)return da<db?1:-1;
+    return b.pi-a.pi;
+  });
+}
 function buildGroupedPolicies(policies,mi){
   if(!policies||!policies.length)return'';
   const order=[];const groups={};
-  policies.forEach((p,pi)=>{
+  newestFirst(policies).forEach(({p,pi})=>{
     const t=p.type||'';
     if(!groups[t]){groups[t]=[];order.push(t);}
     groups[t].push({p,pi});
   });
-  // Sort: empty type always last
-  order.sort((a,b)=>{if(a===''&&b!=='')return 1;if(a!==''&&b==='')return -1;return 0;});
+  // Sort: empty type (newly added, type not chosen yet) always first
+  order.sort((a,b)=>{if(a===''&&b!=='')return -1;if(a!==''&&b==='')return 1;return 0;});
   const TYPE_COLORS={medical:'#2E5E8E',critical:'#C0392B',savings:'#4A7C3F',annuity:'#1B6B5A',life:'#5B4A8A',fund:'#B07D2A',general:'#7A7370','':'#9a8a78'};
   const TYPE_BG={medical:'rgba(46,94,142,0.07)',critical:'rgba(192,57,43,0.07)',savings:'rgba(74,124,63,0.07)',annuity:'rgba(27,107,90,0.07)',life:'rgba(91,74,138,0.07)',fund:'rgba(176,125,42,0.07)',general:'rgba(122,115,112,0.07)','':'rgba(154,138,120,0.07)'};
   return order.map(t=>{
@@ -1021,7 +1030,7 @@ function buildPrintContent(mode,w){
     const insuredAge=getAge(m.insuredDob||m.dob);
 
     let polHTML='';
-    (m.policies||[]).forEach(p=>{
+    newestFirst(m.policies).forEach(({p})=>{
       const bk=BADGE[p.type]||BADGE.life,tn=TYPE_ZH[p.type]||p.type;
       const prem=fmtP(p.premium,p.currency,true);
       const showSA=p.type!=='medical'&&p.type!=='general';
