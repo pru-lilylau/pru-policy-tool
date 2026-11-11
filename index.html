@@ -553,6 +553,12 @@ function newestFirst(policies){
     return b.pi-a.pi;
   });
 }
+// Report order: grouped by type (protection first), newest first within each type
+const REPORT_TYPE_ORDER=['medical','critical','life','accident','savings','annuity','fund','general'];
+function byTypeThenNewest(policies){
+  const rank=t=>{const i=REPORT_TYPE_ORDER.indexOf(t);return i<0?REPORT_TYPE_ORDER.length:i;};
+  return newestFirst(policies).map((x,i)=>({...x,i})).sort((a,b)=>rank(a.p.type)-rank(b.p.type)||a.i-b.i);
+}
 function buildGroupedPolicies(policies,mi){
   if(!policies||!policies.length)return'';
   const order=[];const groups={};
@@ -1030,7 +1036,7 @@ function buildPrintContent(mode,w){
     const insuredAge=getAge(m.insuredDob||m.dob);
 
     let polHTML='';
-    newestFirst(m.policies).forEach(({p})=>{
+    byTypeThenNewest(m.policies).forEach(({p})=>{
       const bk=BADGE[p.type]||BADGE.life,tn=TYPE_ZH[p.type]||p.type;
       const prem=fmtP(p.premium,p.currency,true);
       const showSA=p.type!=='medical'&&p.type!=='general';
