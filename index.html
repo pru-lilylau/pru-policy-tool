@@ -510,7 +510,22 @@ function addPolicy(mi){collectState();S.members[mi].policies.push(newPolicy());r
 function removePolicy(mi,pi){collectState();S.members[mi].policies.splice(pi,1);renderMembers();}
 function onTypeChange(sel,mi,pi){collectState();S.members[mi].policies[pi].type=sel.value;S.members[mi].policies[pi].planName=PRODS[sel.value]?.[0]||'';if(sel.value==='critical'){const pn=S.members[mi].policies[pi].planName;const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=d.dis;S.members[mi].policies[pi].critExtra=d.extra;}}renderMembers();}
 // ─── CRITICAL ILLNESS PLAN DEFAULTS ──────────────────────────────────────────
-const CRIT_DEFAULTS={'「誠保一生」危疾保 (CIM3, 1-65)':{dis:'127種',extra:'50'},'「誠保一生」危疾保 - 摯愛寶 (BCIM3, F 19-46)':{dis:'127種',extra:'50'},'危疾加護保 III (CIE3, 1-65)':{dis:'117種',extra:'50'},'危疾首護保 II (CIP2, 1-65)':{dis:'74種',extra:'50'}};
+// ─── 產品資料表 ─────────────────────────────────────────────────────────────────
+// 按計劃代號（計劃名括號入面嘅英文）記低產品特性。新產品／改資料只需改呢度：
+//   kind      儲蓄型（固定供款期同供款額）或 消費型（續保時調整保費）
+//   renew5    每5年調整保費          convertible  可以轉為免核保嘅儲蓄型危疾
+//   dis/extra 揀計劃時自動填入嘅保障疾病數目／頭10年額外保額(%)
+// 冇列出嘅危疾計劃：有填退保價值當儲蓄型，否則當消費型；冇列出嘅人壽計劃當儲蓄型。
+const PLAN_INFO={
+  CIM3:{kind:'儲蓄型',dis:'127種',extra:'50'}, BCIM3:{kind:'儲蓄型',dis:'127種',extra:'50'},
+  CIE3:{kind:'儲蓄型',dis:'117種',extra:'50'}, CIP2:{kind:'儲蓄型',dis:'74種',extra:'50'},
+  ECI:{kind:'消費型',renew5:true,convertible:true}, ECM:{kind:'消費型',renew5:true,convertible:true}, ECS:{kind:'消費型',renew5:true,convertible:true},
+  CIT2:{kind:'消費型'}, CPE:{kind:'消費型'}, C360:{kind:'消費型'}, CP:{kind:'消費型'}, CRC:{kind:'消費型'},
+  PLT:{kind:'消費型'},
+};
+const planCode=name=>((name||'').match(/\(([A-Z0-9]+)[,)]/)||[])[1]||'';
+const planInfo=p=>PLAN_INFO[planCode(p.planName)]||{};
+const CRIT_DEFAULTS=Object.fromEntries(PRODS.critical.filter(n=>PLAN_INFO[planCode(n)]?.dis).map(n=>[n,{dis:PLAN_INFO[planCode(n)].dis,extra:PLAN_INFO[planCode(n)].extra}]));
 function onCritPlanChange(sel,mi,pi){collectState();const pn=sel.value;S.members[mi].policies[pi].planName=pn;if(pn.includes('自行輸入')){S.members[mi].policies[pi].critDis='';S.members[mi].policies[pi].critExtra='';}else{const d=CRIT_DEFAULTS[pn];if(d){S.members[mi].policies[pi].critDis=d.dis;S.members[mi].policies[pi].critExtra=d.extra;}else{S.members[mi].policies[pi].critDis='';S.members[mi].policies[pi].critExtra='';}}renderMembers();}
 function onAccidentPlanChange(sel,mi,pi){const pol=(S.members[mi]||{policies:[]}).policies[pi];if(pol){pol.planName=sel.value;pol.accidentDeath='';pol.accidentDisable='';pol.accidentMed='';pol.accidentTempDisable='';}collectState();S.members[mi].policies[pi].planName=sel.value;S.members[mi].policies[pi].accidentDeath='';S.members[mi].policies[pi].accidentDisable='';S.members[mi].policies[pi].accidentMed='';S.members[mi].policies[pi].accidentTempDisable='';renderMembers();}
 function onPlanChange(sel){const isC=sel.value.includes('自行輸入');const pc=sel.closest('.pc');const ex=pc.querySelector('[data-f="customName"]');if(isC&&!ex){const inp=document.createElement('input');inp.className='fi';inp.dataset.f='customName';inp.placeholder='自行輸入計劃名稱';inp.style.marginTop='6px';sel.parentNode.appendChild(inp);}else if(!isC&&ex)ex.remove();}
@@ -857,14 +872,12 @@ function genSummaryText(m){
   const income=num(m.annualIncome),debt=num(m.debt)||0;
   const critBase=of('critical').reduce((t,p)=>t+(hk(num(p.sumAssured)||0,p.currency)),0);
   const need=income?income*5+debt:null;
-  // Plan styles: 儲蓄型 (fixed premium term, has cash value) vs 消費型 (renewable term)
-  const code=p=>((p.planName||'').match(/\(([A-Z0-9]+)[,)]/)||[])[1]||'';
-  const ECI_FAMILY=['ECI','ECM','ECS'];   // 「自主健康」系列: 每5年調整保費，可轉為儲蓄型危疾
-  const SAV_CI=['CIM3','BCIM3','CIE3','CIP2'];
-  const critSav=p=>SAV_CI.includes(code(p))||!!(p.crit65||p.crit75||p.crit85);
+  // Plan styles come from PLAN_INFO (產品資料表)
+  const critSav=p=>planInfo(p).kind?planInfo(p).kind==='儲蓄型':!!(p.crit65||p.crit75||p.crit85);
   const crits=of('critical'),cSav=crits.filter(critSav),cCon=crits.filter(p=>!critSav(p));
-  const hasEci=cCon.some(p=>ECI_FAMILY.includes(code(p)));
-  const lifeTerm=p=>code(p)==='PLT'||/定期/.test(p.planName||'');
+  const hasEci=cCon.some(p=>planInfo(p).renew5);
+  const canConvert=cCon.some(p=>planInfo(p).convertible);
+  const lifeTerm=p=>planInfo(p).kind==='消費型'||/定期/.test(p.planName||'');
   // 方案目標 — one short paragraph
   const goal=[];
   if(has('medical'))goal.push('醫療保險保障實報實銷嘅住院費用。');
@@ -889,7 +902,7 @@ function genSummaryText(m){
   if(has('medical'))cost.push('醫療保險係每年續保，保費會隨年齡調整。');
   // Lily建議
   const adv=[];
-  if(hasEci)adv.push('如有需要，消費型危疾可以考慮5年後轉為一份免核保嘅儲蓄型危疾。');
+  if(canConvert)adv.push('如有需要，消費型危疾可以考慮5年後轉為一份免核保嘅儲蓄型危疾。');
   if(!has('critical'))adv.push('建議先諗下危疾保障：危疾保險就係保障收入同債務，唔洗成為屋企人嘅負擔。');
   else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」嘅建議水平仲差大約HKD${fmt(need-critBase)}，可以考慮慢慢加上去。`);
   if(!has('medical'))adv.push('建議加埋醫療保障，住院費用實報實銷，唔使用自己啲積蓄。');
