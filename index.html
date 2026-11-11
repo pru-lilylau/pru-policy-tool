@@ -782,7 +782,7 @@ function buildSumBox(m){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:10.5px;color:#9a8a78;">打開時會按現有保單自動預填，可以再自行修改</span><button type="button" onclick="prefillSummary(this,true)" style="font-size:12px;color:#fff;background:#A08060;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;">按現有保單重新預填</button></div>
     ${ta('sumGoal','方案目標','例：萬一有大病，有一筆錢直接俾你用…')}
     ${ta('sumCost','方案付出','例：每個月大約HKD1,750，48歲就供完…')}
-    ${ta('advice','專業建議','例：唔想成為屋企人嘅負擔，危疾保險就係保障你嘅收入同債務。')}
+    ${ta('advice','Lily建議','例：保障規劃好之後，可以開始為退休儲錢…')}
   </div>
 </details>`;
 }
@@ -807,7 +807,7 @@ function autoPrefillSummary(box){if(SUM_FIELDS.every(f=>!(box.querySelector(`[da
 function prefillSummary(el,ask){
   const box=el.closest('.sum-box');const mc=box.closest('.mc');const mi=+mc.dataset.mi;
   const filled=SUM_FIELDS.some(f=>(box.querySelector(`[data-f="${f}"]`)?.value||'').trim());
-  if(ask&&filled&&!confirm('會覆蓋目前已填嘅方案目標、方案付出、方案收穫同專業建議，確定？'))return;
+  if(ask&&filled&&!confirm('會覆蓋目前已填嘅方案目標、方案付出同Lily建議，確定？'))return;
   collectState();const m=S.members[mi];if(!m)return;
   const t=genSummaryText(m);if(!t)return;
   SUM_FIELDS.forEach(f=>{const ta=box.querySelector(`[data-f="${f}"]`);if(ta)ta.value=t[f]||'';});
@@ -825,35 +825,46 @@ function genSummaryText(m){
   const income=num(m.annualIncome),debt=num(m.debt)||0;
   const critBase=of('critical').reduce((t,p)=>t+(hk(num(p.sumAssured)||0,p.currency)),0);
   const need=income?income*5+debt:null;
-  // 方案目標
+  // Plan styles: 儲蓄型 (fixed premium term, has cash value) vs 消費型 (renewable term)
+  const code=p=>((p.planName||'').match(/\(([A-Z0-9]+)[,)]/)||[])[1]||'';
+  const ECI_FAMILY=['ECI','ECM','ECS'];   // 「自主健康」系列: 每5年調整保費，可轉為儲蓄型危疾
+  const SAV_CI=['CIM3','BCIM3','CIE3','CIP2'];
+  const critSav=p=>SAV_CI.includes(code(p))||!!(p.crit65||p.crit75||p.crit85);
+  const crits=of('critical'),cSav=crits.filter(critSav),cCon=crits.filter(p=>!critSav(p));
+  const hasEci=cCon.some(p=>ECI_FAMILY.includes(code(p)));
+  const lifeTerm=p=>code(p)==='PLT'||/定期/.test(p.planName||'');
+  // 方案目標 — one short paragraph
   const goal=[];
-  if(has('critical'))goal.push('萬一有大病，有一筆錢直接俾你用，唔係報銷：醫療以外嘅開支、供樓同債務、屋企家用，同埋停工期間冇咗嘅收入，都唔使擔心。');
-  if(has('medical'))goal.push('入院做手術嘅費用由醫療保險包，唔使郁用自己啲積蓄。');
-  if(has('life'))goal.push('萬一有咩事，都可以留低一筆錢俾屋企人，照顧佢哋生活，同還埋啲債務。');
-  if(has('accident'))goal.push('意外受傷或者傷殘，有額外賠償應付醫療費同收入損失。');
-  if(has('savings'))goal.push('為退休同人生目標慢慢儲一筆錢，等啲錢穩穩陣陣咁增值。');
-  if(has('annuity'))goal.push('退休之後都有穩定收入，可以安心享受退休生活。');
-  if(has('fund'))goal.push('用長線投資，爭取資產增值。');
-  // 方案付出
+  if(has('medical'))goal.push('醫療保險保障實報實銷嘅住院費用。');
+  if(has('critical'))goal.push('危疾保險就係保障收入同債務，唔洗成為屋企人嘅負擔。');
+  if(has('life'))goal.push('人壽保險係萬一有咩事，都可以留低一筆錢俾屋企人，照顧生活同還清債務。');
+  if(has('accident'))goal.push('意外保險保障意外受傷或者傷殘嘅醫療費同收入損失。');
+  if(has('savings'))goal.push('儲蓄保險為退休同人生目標儲一筆錢，穩陣增值。');
+  if(has('annuity'))goal.push('年金為退休提供穩定收入。');
+  if(has('fund'))goal.push('投資相連計劃用長線投資爭取資產增值。');
+  // 方案付出 — how each kind of premium behaves
   const cost=[];
-  const tot=pols.reduce((t,p)=>{const a=annualOf(p);return t+(a==null?0:hk(a,p.currency));},0);
-  if(tot>0)cost.push(`每年總保費大約HKD${fmt(tot)}，即係每個月大約HKD${fmt(tot/12)}${income?`，約佔年收入${Math.round(tot/income*100)}%`:''}。`);
-  pols.filter(p=>['critical','life','savings','annuity','fund'].includes(p.type)).forEach(p=>{
-    const {term,endAge}=termOf(p);if(!term)return;const tn=TYPE_ZH[p.type];
-    if(['critical','life'].includes(p.type)&&term>=15)cost.push(`${tn}保險分${term}年供，每年供款冇咁重手；保費固定唔會加${endAge?`，${endAge}歲就供完`:''}${endAge&&endAge<=65?'，退休前已經供滿，退休後唔使再擔心保費':''}。`);
-    else cost.push(`${tn}計劃供${term}年${endAge?`，${endAge}歲就供完`:''}。`);
-  });
+  if(crits.length){
+    const kinds=[cSav.length?'儲蓄型危疾':'',cCon.length?'消費型危疾':''].filter(Boolean);
+    let line=`現有保障包括${kinds.join('同')}，`;
+    if(cSav.length)line+='儲蓄型有固定供款期同供款額。';
+    if(cCon.length)line+=hasEci?'消費型每5年調整保費。':'消費型保費會隨續保調整。';
+    cost.push(line.replace(/，$/,'。'));
+  }
+  of('life').forEach(p=>cost.push(lifeTerm(p)?'定期人壽保險保費會隨續保調整。':'人壽保險有固定供款期同供款額。'));
+  const fixed=[has('savings')?'儲蓄保險':'',has('annuity')?'年金':''].filter(Boolean);
+  if(fixed.length)cost.push(`${fixed.join('同')}有固定供款期同供款額。`);
   if(has('medical'))cost.push('醫療保險係每年續保，保費會隨年齡調整。');
-  // 專業建議
+  // Lily建議
   const adv=[];
-  if(!has('critical'))adv.push('建議先諗下危疾保障：萬一有大病，收入停咗都唔會成為屋企人嘅負擔。');
-  else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」嘅建議水平仲差大約HKD${fmt(need-critBase)}，可以慢慢加上去；危疾保險就係保障你嘅收入同債務。`);
-  else adv.push('唔想成為屋企人嘅負擔，危疾保險就係保障你嘅收入同債務。');
-  if(!has('medical'))adv.push('建議加埋醫療保障，入院唔使用自己啲積蓄。');
+  if(hasEci)adv.push('如有需要，消費型危疾可以考慮5年後轉為一份免核保嘅儲蓄型危疾。');
+  if(!has('critical'))adv.push('建議先諗下危疾保障：危疾保險就係保障收入同債務，唔洗成為屋企人嘅負擔。');
+  else if(need!=null&&critBase<need)adv.push(`危疾保額距離「收入5年＋債務」嘅建議水平仲差大約HKD${fmt(need-critBase)}，可以考慮慢慢加上去。`);
+  if(!has('medical'))adv.push('建議加埋醫療保障，住院費用實報實銷，唔使用自己啲積蓄。');
   if(!has('life')&&(debt>0||/父|母|夫|妻|配偶/.test(m.role||'')))adv.push('有屋企人或者債務要照顧，可以考慮埋人壽保障。');
-  if(!has('savings')&&!has('annuity')&&age!=null&&age>=25)adv.push('保障穩陣之後，可以開始為退休儲錢，越早開始，複息效果越明顯。');
+  if(!has('savings')&&!has('annuity'))adv.push('保障規劃好之後，可以開始為退休儲錢，例如儲蓄保險、年金等等。越早開始，複息效果越明顯。');
   adv.push('每年我會同你檢視一次保障；結婚、買樓、生BB呢啲人生階段，記得搵我一齊睇下使唔使調整。');
-  return{sumGoal:goal.join('\n'),sumCost:cost.join('\n'),advice:adv.join('\n')};
+  return{sumGoal:goal.join(''),sumCost:cost.join('\n'),advice:adv.join('\n')};
 }
 
 // ─── PIE ───────────────────────────────────────────────────────────────────────
@@ -1330,7 +1341,7 @@ function buildSummaryBlocks(m){
   return`<div style="margin-top:8px;page-break-inside:avoid;">
   <div class="sec-lbl" style="margin-bottom:6px;">方案總結</div>
   ${top.length?`<div style="display:grid;grid-template-columns:repeat(${top.length},1fr);gap:6px;">${top.map(b=>card(...b)).join('')}</div>`:''}
-  ${adv?`<div style="margin-top:6px;">${card('專業建議',adv,'#7a5a30','#FAF3E8')}</div>`:''}
+  ${adv?`<div style="margin-top:6px;">${card('Lily建議',adv,'#7a5a30','#FAF3E8')}</div>`:''}
 </div>`;
 }
 // Remove report fields that only show "—" so printed pages are not cluttered with blanks
