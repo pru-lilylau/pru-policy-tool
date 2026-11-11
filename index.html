@@ -387,8 +387,8 @@ let S={fname:'',rdate:new Date().toISOString().split('T')[0],adv:'Lau Lai Lai, L
 let allGists=[],curGist=null,sbOpen=true,toastTimer=null,dirty=false;
 const okDiscard=()=>!dirty||confirm('目前有未儲存的修改，確定要放棄？');
 
-function newPolicy(){return{type:'',planName:'',customName:'',policyNo:'',mode:'annual',currency:'HKD',premium:'',sumAssured:'',effectiveDate:'',paymentTerm:'',nextReview:'',ward:'',deductible:'',annualLimit:'',lifetimeLimit:'',accMed:'',accDeath:'',accDisable:'',sv65:'',sv75:'',sv85:'',svcur:'HKD',annTerm:'',annWithdrawal:'',accidentDeath:'',accidentMed:'',accidentDisable:'',critDis:'',critExtra:'',critTo:'',crit65:'',crit75:'',crit85:'',critSvc:'HKD',lifeTo:'',life65:'',life75:'',life85:'',lifeSvc:'HKD',genAccMed:'',genAccDeath:'',genAccWork:'',genHospCash:'',genTravelType:'',genLuggage:'',genTripCancel:'',genTripDelay:'',genCash:'',genMedical:'',genHomePlan:'',genHomeContents:'',genHomeFurniture:'',genHomePersonal:'',genHomeCash:'',genHomeBuilding:'',genMaidPlan:'',genMaidPeriod:'',genMaidAgency:'',genMaidOutpatient:'',genMaidHospital:'',genMaidCI:'',genMaidCICheck:false};}
-function newMember(){return{name:'',dob:'',insuredDob:'',role:'',owner:'',insured:'',beneficiary:'',smoke:'NS',annualIncome:'',debt:'',policies:[]};}
+function newPolicy(){return{type:'',planName:'',customName:'',policyNo:'',mode:'annual',currency:'HKD',premium:'',sumAssured:'',effectiveDate:'',paymentTerm:'',nextReview:'',ward:'',deductible:'',annualLimit:'',lifetimeLimit:'',accMed:'',accDeath:'',accDisable:'',sv65:'',sv75:'',sv85:'',svcur:'HKD',annTerm:'',annWithdrawal:'',accidentDeath:'',accidentMed:'',accidentDisable:'',critDis:'',critExtra:'',critTo:'',crit65:'',crit75:'',crit85:'',critSvc:'HKD',lifeTo:'',life65:'',life75:'',life85:'',lifeSvc:'HKD',genAccMed:'',genAccDeath:'',genAccWork:'',genHospCash:'',genTravelType:'',genLuggage:'',genTripCancel:'',genTripDelay:'',genCash:'',genMedical:'',genHomePlan:'',genHomeContents:'',genHomeFurniture:'',genHomePersonal:'',genHomeCash:'',genHomeBuilding:'',genMaidPlan:'',genMaidPeriod:'',genMaidAgency:'',genMaidOutpatient:'',genMaidHospital:'',genMaidCI:'',genMaidCICheck:false,sumGoal:'',sumCost:'',sumGain:'',projRows:[]};}
+function newMember(){return{name:'',dob:'',insuredDob:'',role:'',owner:'',insured:'',beneficiary:'',smoke:'NS',annualIncome:'',debt:'',advice:'',policies:[]};}
 const gT=()=>{try{return localStorage.getItem('pru_gh_token')||'';}catch(e){return'';}};
 const gP=()=>{try{return localStorage.getItem('pru_pin')||'';}catch(e){return'';}};
 
@@ -463,11 +463,11 @@ function onCTChange(){S.clientType=document.querySelector('input[name="ct"]:chec
 function updateAddBtn(){document.getElementById('add-mb-btn').textContent=`+ 新增${S.clientType==='single'?'保單持有人':'家庭成員'}`;}
 function loadForm(){document.getElementById('f-fname').value=S.fname||'';document.getElementById('f-rdate').value=S.rdate||new Date().toISOString().split('T')[0];document.getElementById('f-nreview').value=S.nreview||'';document.getElementById('f-adv').value=S.adv||'Lau Lai Lai, Lily';document.getElementById('f-advPhone').value=S.advPhone||'6013 3108';document.getElementById('f-advIG').value=S.advIG||'@pru_lilylau';document.getElementById('f-remarks').value=S.remarks||'';document.getElementById('ct-fam').checked=S.clientType!=='single';document.getElementById('ct-sin').checked=S.clientType==='single';document.getElementById('ed-title').textContent=S.fname||'新客戶';updateAddBtn();renderMembers();}
 function collectState(){S.fname=document.getElementById('f-fname').value;S.rdate=document.getElementById('f-rdate').value;S.adv=document.getElementById('f-adv').value;S.advPhone=document.getElementById('f-advPhone').value;S.advIG=document.getElementById('f-advIG').value;S.remarks=document.getElementById('f-remarks').value;S.nreview=document.getElementById('f-nreview').value;S.clientType=document.querySelector('input[name="ct"]:checked')?.value||'family';S.members=collectMembers();}
-function collectMembers(){return Array.from(document.querySelectorAll('.mc')).map(mel=>{const g=f=>mel.querySelector(`[data-f="${f}"]`)?.value||'';return{name:g('name'),dob:g('dob'),insuredDob:g('insuredDob'),role:g('role'),owner:g('owner'),insured:g('insured'),beneficiary:g('beneficiary'),smoke:g('smoke'),annualIncome:g('annualIncome'),debt:g('debt'),policies:collectPolicies(mel)};});}
+function collectMembers(){return Array.from(document.querySelectorAll('.mc')).map(mel=>{const g=f=>mel.querySelector(`[data-f="${f}"]`)?.value||'';return{name:g('name'),dob:g('dob'),insuredDob:g('insuredDob'),role:g('role'),owner:g('owner'),insured:g('insured'),beneficiary:g('beneficiary'),smoke:g('smoke'),annualIncome:g('annualIncome'),debt:g('debt'),advice:g('advice'),policies:collectPolicies(mel)};});}
 function collectPolicies(mel){return Array.from(mel.querySelectorAll('.pc')).sort((a,b)=>(+a.dataset.pi)-(+b.dataset.pi)).map(pel=>{const g=f=>pel.querySelector(`[data-f="${f}"]`)?.value||'';
   // collect fund holdings
   const fundHoldings=[];pel.querySelectorAll('.fund-row').forEach(row=>{const fn=row.querySelector('[data-f="fundName"]')?.value||'';const fp=row.querySelector('[data-f="fundPct"]')?.value||'';if(fn)fundHoldings.push({name:fn,pct:fp});});
-  return{type:g('type'),planName:g('planName'),customName:g('customName'),policyNo:g('policyNo'),mode:g('mode'),currency:g('currency'),premium:g('premium'),sumAssured:g('sumAssured'),effectiveDate:g('effectiveDate'),paymentTerm:g('paymentTerm'),nextReview:g('nextReview'),ward:g('ward'),wardCustom:g('wardCustom'),deductible:g('deductible'),deductibleCustom:g('deductibleCustom'),annualLimit:g('annualLimit'),lifetimeLimit:g('lifetimeLimit'),accMed:g('accMed'),accDeath:g('accDeath'),accDisable:g('accDisable'),sv65:g('sv65'),sv75:g('sv75'),sv85:g('sv85'),svcur:g('svcur')||'HKD',annTerm:g('annTerm'),annWithdrawal:g('annWithdrawal'),accidentCur:g('accidentCur')||'HKD',accidentDeath:g('accidentDeath'),accidentMed:g('accidentMed'),accidentDisable:g('accidentDisable'),accidentTempDisable:g('accidentTempDisable'),critDis:g('critDis'),critExtra:g('critExtra'),critTo:g('critTo'),crit65:g('crit65'),crit75:g('crit75'),crit85:g('crit85'),critSvc:g('critSvc')||'HKD',lifeTo:g('lifeTo'),life65:g('life65'),life75:g('life75'),life85:g('life85'),lifeSvc:g('lifeSvc')||'HKD',genAccMed:g('genAccMed'),genAccDeath:g('genAccDeath'),genAccWork:g('genAccWork'),genHospCash:g('genHospCash'),genTravelType:g('genTravelType'),genLuggage:g('genLuggage'),genTripCancel:g('genTripCancel'),genTripDelay:g('genTripDelay'),genCash:g('genCash'),genMedical:g('genMedical'),genHomePlan:g('genHomePlan'),genHomeContents:g('genHomeContents'),genHomeFurniture:g('genHomeFurniture'),genHomePersonal:g('genHomePersonal'),genHomeCash:g('genHomeCash'),genHomeBuilding:g('genHomeBuilding'),genMaidPlan:g('genMaidPlan'),genMaidPeriod:g('genMaidPeriod'),genMaidAgency:g('genMaidAgency'),genMaidOutpatient:g('genMaidOutpatient'),genMaidHospital:g('genMaidHospital'),genMaidCI:g('genMaidCI'),genMaidCICheck:pel.querySelector('[data-f="genMaidCICheck"]')?.checked||false,fundHoldings};})}
+  return{type:g('type'),planName:g('planName'),customName:g('customName'),policyNo:g('policyNo'),mode:g('mode'),currency:g('currency'),premium:g('premium'),sumAssured:g('sumAssured'),effectiveDate:g('effectiveDate'),paymentTerm:g('paymentTerm'),nextReview:g('nextReview'),ward:g('ward'),wardCustom:g('wardCustom'),deductible:g('deductible'),deductibleCustom:g('deductibleCustom'),annualLimit:g('annualLimit'),lifetimeLimit:g('lifetimeLimit'),accMed:g('accMed'),accDeath:g('accDeath'),accDisable:g('accDisable'),sv65:g('sv65'),sv75:g('sv75'),sv85:g('sv85'),svcur:g('svcur')||'HKD',annTerm:g('annTerm'),annWithdrawal:g('annWithdrawal'),accidentCur:g('accidentCur')||'HKD',accidentDeath:g('accidentDeath'),accidentMed:g('accidentMed'),accidentDisable:g('accidentDisable'),accidentTempDisable:g('accidentTempDisable'),critDis:g('critDis'),critExtra:g('critExtra'),critTo:g('critTo'),crit65:g('crit65'),crit75:g('crit75'),crit85:g('crit85'),critSvc:g('critSvc')||'HKD',lifeTo:g('lifeTo'),life65:g('life65'),life75:g('life75'),life85:g('life85'),lifeSvc:g('lifeSvc')||'HKD',genAccMed:g('genAccMed'),genAccDeath:g('genAccDeath'),genAccWork:g('genAccWork'),genHospCash:g('genHospCash'),genTravelType:g('genTravelType'),genLuggage:g('genLuggage'),genTripCancel:g('genTripCancel'),genTripDelay:g('genTripDelay'),genCash:g('genCash'),genMedical:g('genMedical'),genHomePlan:g('genHomePlan'),genHomeContents:g('genHomeContents'),genHomeFurniture:g('genHomeFurniture'),genHomePersonal:g('genHomePersonal'),genHomeCash:g('genHomeCash'),genHomeBuilding:g('genHomeBuilding'),genMaidPlan:g('genMaidPlan'),genMaidPeriod:g('genMaidPeriod'),genMaidAgency:g('genMaidAgency'),genMaidOutpatient:g('genMaidOutpatient'),genMaidHospital:g('genMaidHospital'),genMaidCI:g('genMaidCI'),genMaidCICheck:pel.querySelector('[data-f="genMaidCICheck"]')?.checked||false,fundHoldings,sumGoal:g('sumGoal'),sumCost:g('sumCost'),sumGain:g('sumGain'),projRows:collectProjRows(pel)};})}
 
 // ─── RENDER MEMBERS ────────────────────────────────────────────────────────────
 function checkInsuredDob(inp){const mc=inp.closest('.mc');if(!mc)return;const owner=mc.querySelector('[data-f="owner"]')?.value||'';const insured=mc.querySelector('[data-f="insured"]')?.value||'';const miMatch=mc.id?.match(/\d+/);const rows=mc.querySelectorAll('[id^="insuredDobRow_"]');rows.forEach(row=>{row.style.display=(insured&&owner&&insured!==owner)?'':'none';});}
@@ -542,6 +542,7 @@ function renderMembers(){const wrap=document.getElementById('members-wrap');cons
     <div class="ff"><label class="fl">年收入 (HKD)　<span style="font-weight:400;opacity:.7;">計保障缺口用，可留空</span></label><input class="fi" data-f="annualIncome" value="${m.annualIncome||''}" placeholder="例：360,000"></div>
     <div class="ff"><label class="fl">債務 (HKD)　<span style="font-weight:400;opacity:.7;">按揭、私人貸款等</span></label><input class="fi" data-f="debt" value="${m.debt||''}" placeholder="例：2,000,000"></div>
   </div>
+  <div class="ff" style="margin-bottom:14px;"><label class="fl">專業建議　<span style="font-weight:400;opacity:.7;">印喺「方案總結」頁，可留空</span></label><textarea class="fi" data-f="advice" rows="2" placeholder="例：避免成為家人負擔，重疾險是收入和債務保障。">${escH(m.advice||'')}</textarea></div>
   <div style="font-size:10px;font-weight:700;color:#003865;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-left:8px;border-left:2px solid #E31837;">保單</div>
   <div class="pc-wrap" id="pc-wrap-${mi}">${m.policies.length?buildGroupedPolicies(m.policies,mi):'<div style="text-align:center;padding:18px 0 10px;color:#C8B890;font-size:12px;">尚未加入保單，按下方按鈕新增</div>'}</div>
   <button class="add-policy-btn" onclick="addPolicy(${mi})">+ 新增保單類別</button>
@@ -757,8 +758,47 @@ if(t==='medical'){const wards=md?.wards||['私家病房','半私家病房','普�
     <div class="ff"><label class="fl">繳費年期</label><input class="fi" data-f="paymentTerm" value="${p.paymentTerm||''}" placeholder="20年"></div>
   </div>
   ${extra}
+  ${t?buildSumBox(p):''}
   </div>
 </div>`;}
+
+// ─── 方案總結 (per-policy summary, printed on its own page) ─────────────────────
+function escH(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function projRowHTML(r){r=r||{};return`<div class="proj-row" style="display:grid;grid-template-columns:64px 1fr 1fr 28px;gap:6px;margin-bottom:6px;align-items:center;"><input class="fi" data-pr="age" value="${escH(r.age)}" placeholder="65" inputmode="numeric" style="font-size:13px;text-align:center;"><input class="fi" data-pr="sa" value="${escH(r.sa)}" placeholder="1,000,000" style="font-size:13px;" oninput="this.value=ac(this.value)"><input class="fi" data-pr="sv" value="${escH(r.sv)}" placeholder="0" style="font-size:13px;" oninput="this.value=ac(this.value)"><button type="button" onclick="this.closest('.proj-row').remove()" style="background:none;border:none;color:#9a8a78;cursor:pointer;font-size:16px;">×</button></div>`;}
+function buildSumBox(p){
+  const rows=p.projRows||[];
+  const has=p.sumGoal||p.sumCost||p.sumGain||rows.length;
+  const ta=(f,l,ph)=>`<div class="ff" style="margin-bottom:8px;"><label class="fl">${l}</label><textarea class="fi" data-f="${f}" rows="2" placeholder="${ph}" style="font-size:13px;">${escH(p[f])}</textarea></div>`;
+  return`<details class="sum-box"${has?' open':''} style="margin-top:12px;border:1px dashed #c8b89a;border-radius:8px;padding:8px 10px;background:#fffdf8;">
+  <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#7a5a30;">方案總結（選填・會另外印一頁）</summary>
+  <div style="margin-top:10px;">
+    ${ta('sumGoal','方案目標','例：萬一患上大病，應付醫療以外的必要支出，包括債務、家庭開支、失去工作的收入')}
+    ${ta('sumCost','方案付出','例：25年供款，每年保費固定，退休前供滿')}
+    ${ta('sumGain','方案收穫','例：確診可獲一筆過HKD100萬；保額隨年齡增長，85歲時預期達HKD600萬')}
+    <label class="fl">保障預算表</label>
+    <div style="display:grid;grid-template-columns:64px 1fr 1fr 28px;gap:6px;font-size:11px;color:#9a8a78;margin:2px 0 4px;"><span style="text-align:center;">年歲</span><span>保額</span><span>退保價值</span><span></span></div>
+    <div class="proj-rows">${rows.map(projRowHTML).join('')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
+      <button type="button" onclick="addProjRow(this)" style="font-size:12px;color:#7a5a30;background:none;border:1px dashed #c8b89a;border-radius:6px;padding:4px 10px;cursor:pointer;">+ 新增一行</button>
+      <button type="button" onclick="fillProjAges(this)" style="font-size:12px;color:#7a5a30;background:none;border:1px dashed #c8b89a;border-radius:6px;padding:4px 10px;cursor:pointer;">帶入65/75/85歲退保價值</button>
+    </div>
+    <div style="font-size:10px;color:#9a8a78;margin-top:6px;line-height:1.5;">💡 保單年度、累計已付保費同回本比率會喺報告自動計（要填受保人出生日期、生效日期同繳費年期）</div>
+  </div>
+</details>`;
+}
+function addProjRow(btn,r){const wrap=btn.closest('.sum-box').querySelector('.proj-rows');wrap.insertAdjacentHTML('beforeend',projRowHTML(r));return wrap.lastElementChild;}
+function fillProjAges(btn){
+  const pc=btn.closest('.pc');const t=pc.querySelector('[data-f="type"]')?.value;
+  const pre={savings:'sv',annuity:'sv',critical:'crit',life:'life'}[t]||'sv';
+  const box=btn.closest('.sum-box');
+  [65,75,85].forEach(a=>{
+    const sv=pc.querySelector(`[data-f="${pre}${a}"]`)?.value||'';
+    let row=[...box.querySelectorAll('.proj-row')].find(r=>r.querySelector('[data-pr="age"]').value.trim()===String(a));
+    if(!row)row=addProjRow(btn,{age:a});
+    const svIn=row.querySelector('[data-pr="sv"]');if(sv&&!svIn.value)svIn.value=sv;
+  });
+}
+function collectProjRows(pel){return[...pel.querySelectorAll('.proj-row')].map(r=>({age:r.querySelector('[data-pr="age"]').value.trim(),sa:r.querySelector('[data-pr="sa"]').value.trim(),sv:r.querySelector('[data-pr="sv"]').value.trim()})).filter(r=>r.age||r.sa||r.sv).sort((a,b)=>(parseFloat(a.age)||999)-(parseFloat(b.age)||999));}
 
 // ─── PIE ───────────────────────────────────────────────────────────────────────
 function buildPieData(members){const tm={};let total=0;(members||[]).forEach(m=>(m.policies||[]).forEach(p=>{const raw=parseFloat((p.premium||'0').replace(/,/g,''));if(isNaN(raw)||raw<=0)return;const a=p.mode==='monthly'?raw*12:p.mode==='quarterly'?raw*4:raw;const h=p.currency==='HKD'?a:(toHKD(a,p.currency)||a);tm[p.type]=(tm[p.type]||0)+h;total+=h;}));const pd=Object.entries(tm).sort((a,b)=>b[1]-a[1]).map(([t,v])=>({type:t,val:v,color:WCOL[t]||'#999'}));return{pieData:pd,grandHKD:total,typeMap:tm};}
@@ -1105,13 +1145,13 @@ function buildPrintContent(mode,w){
     // Medical summary rows: one per medical policy (ward + annual limit)
     const mMedRows=(m.policies||[]).filter(p=>p.type==='medical').map(p=>{const w=p.ward==='自行輸入'?(p.wardCustom||''):(p.ward||'');const parts=[w,p.annualLimit?`每年${p.annualLimit}`:''].filter(Boolean);return['醫療保障',parts.join('<br>')||'—'];});
     // Protection gap: critical illness base sum assured vs (5 years' income + debt)
-    let mGapHTML='';
+    let mGapHTML='',mGap=null;
     {const num=v=>{const n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?0:n;};
      const inc=num(m.annualIncome),debt=num(m.debt);
      if(inc>0||debt>0){
        const need=inc*5+debt;
        const have=(m.policies||[]).filter(p=>p.type==='critical').reduce((t,p)=>t+toH(p.sumAssured,p.currency||'HKD'),0);
-       const ok=have>=need;const diff=Math.abs(need-have);
+       const ok=have>=need;const diff=Math.abs(need-have);mGap={need,have,ok,diff};
        const c=ok?'#276B0C':'#B5122B',bg=ok?'#EDF5E6':'#FEF0F2',bd=ok?'#c0dd97':'#f5c0c9';
        mGapHTML=`<div style="margin-top:8px;background:${bg};border:0.5px solid ${bd};border-radius:4px;padding:7px 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="font-size:11px;font-weight:700;color:${c};margin-bottom:4px;">危疾保障缺口</div><div style="display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;"><span style="color:#7a6a5a;">建議保額<br><span style="font-size:9px;opacity:.8;">收入5年＋債務</span></span><span style="font-weight:700;">HKD ${fmt(need)}</span></div><div style="display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;"><span style="color:#7a6a5a;">現有危疾基本保額</span><span style="font-weight:700;">HKD ${fmt(have)}</span></div><div style="text-align:center;font-size:11.5px;font-weight:700;color:${c};margin-top:4px;padding-top:4px;border-top:0.5px dashed ${bd};">${ok?'✓ 已達標':`尚欠 HKD ${fmt(diff)}`}</div></div>`;
      }}
@@ -1136,6 +1176,7 @@ function buildPrintContent(mode,w){
     const isLast=mi===members.length-1;
     const footerHTML=isLast?`<div style="background:${NAVY};padding:9px 14px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.9;text-align:center;margin-top:8px;border-radius:0 0 4px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">本摘要僅供參考，詳細條款請參閱原保單文件。如有疑問，請聯絡您的顧問。<br>* 退保價值為預期數字，包括非保證金額，實際金額或會較高或較低，以保險公司發出之利益說明文件為準。<br><span style="font-size:11px;opacity:.7;">外幣換算以參考匯率計算，實際匯率以交易當日為準。Prudential Hong Kong Limited 保誠保險有限公司 | ${today}</span></div>`:'';
 
+    const sumPageHTML=buildSummaryPage(m,hdrHTML,mGap,rel,insuredAge);
     return `<div class="pg-page">
 ${hdrHTML}
   <div class="pg-wrap">
@@ -1158,7 +1199,7 @@ ${hdrHTML}
     </div>
   </div>
   ${footerHTML}
-</div>`;
+</div>${sumPageHTML}`;
   }
 
   const pagesHTML=pruneEmptyFields(members.map((m,mi)=>buildMemberPage(m,mi)).join(''));
@@ -1221,6 +1262,51 @@ ${wmCSS}
   },100);
 }
 function _runSavePDF(){}
+// 方案總結 page: what the member's current plans give them (goal / cost / gain + projection table)
+function buildSummaryPage(m,hdrHTML,gap,rel,insuredAge){
+  const list=byTypeThenNewest(m.policies).map(x=>x.p).filter(p=>p.sumGoal||p.sumCost||p.sumGain||(p.projRows||[]).length);
+  if(!list.length&&!m.advice)return'';
+  const num=v=>{const n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?null:n;};
+  const yrs=(a,b)=>{const x=new Date(a),y=new Date(b);if(isNaN(x)||isNaN(y))return null;return y.getFullYear()-x.getFullYear()-((y.getMonth()<x.getMonth()||(y.getMonth()===x.getMonth()&&y.getDate()<x.getDate()))?1:0);};
+  const nl=v=>escH(v).replace(/\n/g,'<br>');
+  const dob=m.insuredDob||m.dob;
+  const money=(v,c)=>v==null?'':`${c&&c!=='HKD'?c+' ':''}${fmt(v)}`;
+  const cards=list.map(p=>{
+    const bk=BADGE[p.type]||BADGE.life,tn=TYPE_ZH[p.type]||p.type;
+    const _cn=(p.customName||'').includes('自行輸入')?'':(p.customName||'');
+    const name=(p.planName||'').includes('自行輸入')?(_cn||tn):(p.planName||tn);
+    const cur=p.currency||'HKD';
+    const svCur={savings:p.svcur,annuity:p.svcur,critical:p.critSvc,life:p.lifeSvc}[p.type]||cur;
+    const prem=num(p.premium);const annual=prem==null?null:prem*(p.mode==='monthly'?12:p.mode==='quarterly'?4:1);
+    const issueAge=dob&&p.effectiveDate?yrs(dob,p.effectiveDate):null;
+    let term=null;{const t=num(String(p.paymentTerm||'').replace(/[^\d.]/g,''));if(t!=null){term=/歲/.test(p.paymentTerm)?(issueAge!=null?t-issueAge:null):t;}}
+    const rows=(p.projRows||[]).filter(r=>r.sa||r.sv).map(r=>{
+      const age=num(r.age),sa=num(r.sa),sv=num(r.sv);
+      let yr=null,paid=null,ratio=null;
+      if(age!=null&&issueAge!=null){yr=Math.max(1,age-issueAge);if(annual!=null&&term!=null)paid=annual*Math.min(yr,term);}
+      if(paid&&sv!=null){const pH=cur==='HKD'?paid:(toHKD(paid,cur)||paid),sH=svCur==='HKD'?sv:(toHKD(sv,svCur)||sv);ratio=sH/pH;}
+      return{age,yr,paid,sa,sv,ratio};
+    }).sort((a,b)=>(a.age??999)-(b.age??999));
+    const cols=[['年歲',r=>r.age==null?'':`${r.age}歲`,true],['保單年度',r=>r.yr==null?'':`第${r.yr}年`],['累計已付保費',r=>money(r.paid,cur)],['保額*',r=>money(r.sa,cur)],['退保價值*',r=>money(r.sv,svCur)],['回本比率',r=>r.ratio==null?'':`${Math.round(r.ratio*100)}%`]]
+      .filter(([,fn,keep])=>keep||rows.some(r=>fn(r)!==''));
+    const table=rows.length?`<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11px;"><tr>${cols.map(([h],i)=>`<th style="background:#FAF3E8;color:#7a5a30;font-weight:700;padding:5px 6px;text-align:${i?'right':'left'};border-bottom:1px solid #e6d8c0;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(([,fn],i)=>{const v=fn(r);const hi=cols[i][0]==='回本比率'&&r.ratio!=null&&r.ratio>=1;return`<td style="padding:5px 6px;text-align:${i?'right':'left'};border-bottom:0.5px dashed #e2e6ea;${i?'':'font-weight:700;'}${hi?'color:#276B0C;font-weight:700;':''}">${v||'—'}</td>`;}).join('')}</tr>`).join('')}</table>`:'';
+    const blocks=[['方案目標',p.sumGoal,'#B5122B','#FEF0F2'],['方案付出',p.sumCost,'#003865','#EAF1F8'],['方案收穫',p.sumGain,'#276B0C','#EDF5E6']].filter(b=>b[1]);
+    const blockHTML=blocks.length?`<div style="display:grid;grid-template-columns:repeat(${blocks.length},1fr);gap:6px;margin-top:7px;">${blocks.map(([l,v,c,bg])=>`<div style="background:${bg};border-radius:4px;padding:7px 9px;border-left:3px solid ${c};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="font-size:11px;font-weight:700;color:${c};margin-bottom:3px;">${l}</div><div style="font-size:11px;line-height:1.55;color:#1a1a2e;">${nl(v)}</div></div>`).join('')}</div>`:'';
+    const meta=[annual!=null?`每年保費 ${money(annual,cur)}`:'',p.paymentTerm?`繳費年期 ${escH(p.paymentTerm)}`:'',num(p.sumAssured)!=null?`保額 ${money(num(p.sumAssured),cur)}`:''].filter(Boolean).join('　·　');
+    return`<div class="pc" style="padding:8px 10px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><span style="font-size:11px;font-weight:600;padding:2px 6px;border-radius:12px;border:0.5px solid;display:inline-block;margin-bottom:2px;background:${bk.bg};color:${bk.c};border-color:${bk.b};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${tn}</span><div style="font-size:12px;font-weight:700;color:#1a1a2e;">${escH(name)}</div></div><div style="font-size:11px;color:#52606d;text-align:right;">${meta}</div></div>${blockHTML}${table}</div>`;
+  }).join('');
+  const gapHTML=gap?`<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;background:${gap.ok?'#EDF5E6':'#FEF0F2'};border:0.5px solid ${gap.ok?'#c0dd97':'#f5c0c9'};border-radius:5px;padding:7px 10px;margin-bottom:8px;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><strong style="color:${gap.ok?'#276B0C':'#B5122B'};">達成目標條件</strong><span>危疾保額 ≥ 收入5年＋債務（HKD ${fmt(gap.need)}）</span><span>現有危疾基本保額 HKD ${fmt(gap.have)}</span><strong style="margin-left:auto;color:${gap.ok?'#276B0C':'#B5122B'};">${gap.ok?'✓ 已達標':`尚欠 HKD ${fmt(gap.diff)}`}</strong></div>`:'';
+  const advice=m.advice?`<div style="background:#FAF3E8;border-left:3px solid #A08060;padding:9px 12px;margin-top:4px;font-size:11.5px;line-height:1.6;color:#3D2000;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><strong>專業建議：</strong>${nl(m.advice)}</div>`:'';
+  const who=m.insured||m.owner||'（未填）';
+  return`<div class="pg-page">
+${hdrHTML}
+  <div style="padding:9px 11px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid #003865;padding-bottom:5px;margin-bottom:9px;"><div style="font-size:14px;font-weight:700;color:#003865;">方案總結 · ${escH(who)} <span style="font-size:11px;font-weight:400;color:#52606d;">${rel}${insuredAge?` · ${insuredAge}`:''}</span></div><div style="font-size:11px;color:#52606d;">現有保單為您提供的保障</div></div>
+    ${gapHTML}${cards}${advice}
+    <div style="font-size:9.5px;color:#888;line-height:1.6;margin-top:10px;">* 保額及退保價值為預期數字，可能包括非保證金額，實際金額或會較高或較低，以保險公司發出之利益說明文件為準。累計已付保費按現時保費計算，未計將來保費調整。</div>
+  </div>
+</div>`;
+}
 // Remove report fields that only show "—" so printed pages are not cluttered with blanks
 function pruneEmptyFields(html){
   const d=new DOMParser().parseFromString(`<div id="pe-root">${html}</div>`,'text/html');const root=d.getElementById('pe-root');
