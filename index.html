@@ -340,7 +340,9 @@ input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:#A08060;}
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const RED='#E31837',NAVY='#003865',MILK='#A08060';
 const AVBG=['#003865','#E31837','#276B0C','#7A4500','#3A2F8F','#085041'];
-const FX={HKD:1,USD:7.78,RMB:1.07,CNY:1.07,GBP:9.85,EUR:8.30};
+// 參考匯率（兌港幣）— 全個工具只用呢一份；更新匯率改呢度就得，報告頁底會自動列出
+const FX={HKD:1,USD:7.78,RMB:1.07,CNY:1.07,GBP:9.85,EUR:8.30,AUD:4.95,SGD:5.75,JPY:0.052,CAD:5.65};
+const fxNote=()=>'參考匯率：'+CURRENCIES.filter(c=>c!=='HKD'&&FX[c]).map(c=>`${c} ${FX[c]}`).join('、');
 const FUND_LIST=[{code:'AAIX',name:'AB FCP I - 美元收益基金'},{code:'AHYX',name:'AB FCP I - 環球高收益基金'},{code:'AIGX',name:'安聯環球投資基金 - 安聯收益及增長基金'},{code:'BATX',name:'貝萊德全球基金 - 亞洲老虎債券基金'},{code:'BEEX',name:'貝萊德全球基金 - 歐洲股票入息基金'},{code:'BEMX',name:'貝萊德全球基金 - 新興市場債券基金'},{code:'BSSX',name:'霸菱環球高級抵押債券基金'},{code:'EABX',name:'瀚亞投資 - 亞洲債券基金'},{code:'EAHX',name:'瀚亞投資 - 亞洲高收益債券基金'},{code:'EIBX',name:'瀚亞投資 - 美國優質債券基金'},{code:'FGMX',name:'富達基金 - 環球多元收益基金'},{code:'FHYX',name:'富達基金 - 美元高收益基金'},{code:'IIFX',name:'晉達環球策略基金 - 環球入息導向基金'},{code:'JAPX',name:'摩根基金 - 亞太入息基金'},{code:'SGHX',name:'施羅德環球基金系列 - 環球高收益'},{code:'TFRX',name:'富蘭克林浮動息率基金'}];
 const toHKD=(a,c)=>{const r=FX[c]||0;return r?Math.round(a*r):null;};
 const fmt=n=>Math.round(n).toLocaleString('zh-HK');
@@ -701,7 +703,6 @@ if(t==='medical'){const wards=md?.wards||['私家病房','半私家病房','普�
     }
     const annColor='#085041'; const annBorder='#5DCAA5';
     // HKD equivalent hint for withdrawal
-    const FX={'USD':7.78,'CNY':1.08,'GBP':9.85,'EUR':8.45,'AUD':4.95,'SGD':5.75,'JPY':0.052,'CAD':5.65};
     const fxRate=FX[svcur]||1;
     const wdNum=parseFloat((p.annWithdrawal||'').replace(/[^0-9.]/g,''))||0;
     const wdHKD=svcur!=='HKD'&&wdNum>0?`≈ HKD ${Math.round(wdNum*fxRate).toLocaleString('en-HK')}`:'';
@@ -1257,7 +1258,7 @@ function buildPrintContent(mode,w){
        mGapHTML=`<div style="margin-top:8px;background:${bg};border:0.5px solid ${bd};border-radius:4px;padding:7px 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="font-size:11px;font-weight:700;color:${c};margin-bottom:4px;">危疾保障缺口</div><div style="display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;"><span style="color:#7a6a5a;">建議保額<br><span style="font-size:9px;opacity:.8;">收入5年＋債務</span></span><span style="font-weight:700;">HKD ${fmt(need)}</span></div><div style="display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0;"><span style="color:#7a6a5a;">現有危疾基本保額</span><span style="font-weight:700;">HKD ${fmt(have)}</span></div><div style="text-align:center;font-size:11.5px;font-weight:700;color:${c};margin-top:4px;padding-top:4px;border-top:0.5px dashed ${bd};">${ok?'✓ 已達標':`尚欠 HKD ${fmt(diff)}`}</div></div>`;
      }}
     const insuredDisplay=m.insured||m.owner||'（未填）';
-    const mbHdr=`<div class="mb-hdr" style="background:${col};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${thumbSVG}</div><div style="flex:1;"><div style="color:#fff;font-size:13px;font-weight:700;">受保人: ${insuredDisplay} <span style="font-size:11px;font-weight:400;opacity:.75;">${rel}${insuredAge?` · ${insuredAge}`:''}</span></div><div style="color:rgba(255,255,255,.65);font-size:11px;margin-top:2px;">投保人: ${m.owner||'—'} | 受益人: ${m.beneficiary||'—'} | ${m.smoke==='NS'?'非吸煙':'吸煙'}</div></div>${mTotStr}</div>`;
+    const mbHdr=`<div class="mb-hdr" style="background:${col};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${thumbSVG}</div><div style="flex:1;"><div style="color:#fff;font-size:13px;font-weight:700;">受保人: ${insuredDisplay} <span style="font-size:11px;font-weight:400;opacity:.75;">${rel}${insuredAge?` · ${insuredAge}`:''}</span></div><div style="color:rgba(255,255,255,.65);font-size:11px;margin-top:2px;">${[m.owner?`投保人: ${m.owner}`:'',m.beneficiary?`受益人: ${m.beneficiary}`:'',m.smoke==='NS'?'非吸煙':'吸煙'].filter(Boolean).join(' | ')}</div></div>${mTotStr}</div>`;
 
     const hdrHTML=`<div class="pg-hdr-adv">
   <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.25);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;">${adv?adv.charAt(0).toUpperCase():'?'}</div>
@@ -1275,7 +1276,7 @@ function buildPrintContent(mode,w){
 </div>
 <div class="pg-hdr-red"></div>`;
     const isLast=mi===members.length-1;
-    const footerHTML=isLast?`<div style="background:${NAVY};padding:9px 14px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.9;text-align:center;margin-top:8px;border-radius:0 0 4px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">本摘要僅供參考，詳細條款請參閱原保單文件。如有疑問，請聯絡您的顧問。<br>* 退保價值及按年歲保額為預期數字，包括非保證金額，實際金額或會較高或較低，以保險公司發出之利益說明文件為準。<br><span style="font-size:11px;opacity:.7;">外幣換算以參考匯率計算，實際匯率以交易當日為準。Prudential Hong Kong Limited 保誠保險有限公司 | ${today}</span></div>`:'';
+    const footerHTML=isLast?`<div style="background:${NAVY};padding:9px 14px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.9;text-align:center;margin-top:8px;border-radius:0 0 4px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">本摘要僅供參考，詳細條款請參閱原保單文件。如有疑問，請聯絡您的顧問。<br>* 退保價值及按年歲保額為預期數字，包括非保證金額，實際金額或會較高或較低，以保險公司發出之利益說明文件為準。<br><span style="font-size:11px;opacity:.7;">外幣換算以參考匯率計算（${fxNote()}），實際匯率以交易當日為準。Prudential Hong Kong Limited 保誠保險有限公司 | ${today}</span></div>`:'';
 
     return `<div class="pg-page">
 ${hdrHTML}
@@ -1401,7 +1402,6 @@ function calcAnnuityHKD(el){
   if(!hintEl)return;
   const cur=pc.querySelector('[data-f="svcur"]')?.value||'USD';
   const wdVal=pc.querySelector('[data-f="annWithdrawal"]')?.value||'';
-  const FX={'USD':7.78,'CNY':1.08,'GBP':9.85,'EUR':8.45,'AUD':4.95,'SGD':5.75,'JPY':0.052,'CAD':5.65};
   const rate=FX[cur]||1;
   const num=parseFloat(wdVal.replace(/[^0-9.]/g,''))||0;
   hintEl.textContent=(cur!=='HKD'&&num>0)?`≈ HKD ${Math.round(num*rate).toLocaleString('en-HK')}`:'';
