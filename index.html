@@ -1267,7 +1267,7 @@ ${hdrHTML}
       <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:8px;">${mPieSVG}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;justify-content:center;">${mLegend}</div></div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:9px;">${mDistRows}<tr style="border-top:1.5px solid #dde2ea;"><td style="padding:4px 6px 2px 0;font-size:11px;font-weight:700;color:#1a1a2e;">平均每月</td><td style="padding:4px 5px 2px;text-align:right;font-size:11px;font-weight:700;color:#1a1a2e;">${mGrandHKD>0?fmt(mGrandHKD/12):'—'}</td><td style="padding:4px 0 2px;text-align:right;font-size:11px;font-weight:700;color:#1a1a2e;">100%</td></tr></table>
       <div style="height:0.5px;background:#dde2ea;margin:8px 0;"></div>
-      <div class="sec-lbl">保障摘要</div>
+      <div class="sec-lbl">保障總覽</div>
       ${(()=>{const rows=[...mMedRows,['危疾保額',fmtSA(mCritSA)],['人壽保額',fmtSA(mLifeSA)],['65歲退保*',mHas65?`HKD ${fmt(mSv65)}`:'—'],['75歲退保*',mHas75?`HKD ${fmt(mSv75)}`:'—'],...(mHas85?[['85歲退保*',`HKD ${fmt(mSv85)}`]]:[])].filter(([k,v])=>v&&v!=='—');return rows.length?rows:[['—','']];})().map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px dashed #c8c0b4;font-size:11px;"><span style="color:#7a6a5a;">${k}</span><span style="font-weight:700;color:#1a1a2e;">${v}</span></div>`).join('')}
       ${mGapHTML}
       <div style="height:0.5px;background:#dde2ea;margin:9px 0 4px;"></div>
